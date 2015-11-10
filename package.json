@@ -1,0 +1,15 @@
+{
+  "name": "trapper",
+  "version": "0.0.1",
+  "description": "SNMP Trap receiver",
+  "repository": "",
+  "license": "MIT",
+  "devDependencies": {
+    "expect.js": "^0.3.1",
+    "mocha": "^2.3.3"
+  },
+  "dependencies": {
+    "asn1": "^0.2.3",
+    "ip": "^1.0.2"
+  }
+}
