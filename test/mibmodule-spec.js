@@ -2,7 +2,7 @@
  * Created by Samuel on 21/11/2015.
  */
 
-var MibModule = require('../src/parser/mibmodule.js');
+var MibModule = require('../src/mib/mibmodule.js').MibModule;
 
 describe("MibModule constructor", function () {
     var mibPath = "C:\\usr\\share\\snmp\\mibs\\IF-MIB.txt";

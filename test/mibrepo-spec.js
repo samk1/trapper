@@ -2,8 +2,8 @@
  * Created by Samuel on 21/11/2015.
  */
 
-var MibRepo = require('../src/parser/mibrepo.js').MibRepo;
-var MibModule = require('../src/parser/mibmodule.js').MibModule;
+var MibRepo = require('./mibrepo.js').MibRepo;
+var MibModule = require('./mibmodule.js').MibModule;
 var expect = require('expect.js');
 
 //Test mib reporitoriy mib path
