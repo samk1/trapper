@@ -29,9 +29,40 @@ describe("MibModule constructor", function () {
         it("contains a mapping of identifiers to definitions");
 
         it("should contain a definition for the ifInOctets object", function () {
-            expect(ifMib.definitions).to.have.property("ifinOctets");
+            expect(ifMib.definitions).to.have.property("ifInOctets");
         });
 
+        describe("The ifInOctets object definition", function () {
+            var definition = null;
+
+            beforeEach(function () {
+                definition = ifMib.definitions.ifInOctets;
+            });
+
+            it("should have a syntax property", function () {
+                expect(definition).to.have.property('syntax');
+            });
+
+            it("should have a description property", function () {
+                expect(definition).to.have.property('description');
+            });
+
+            it("should have a status property", function () {
+                expect(definition).to.have.property('status');
+            });
+
+            it("should have a maxAccess property", function () {
+                expect(definition).to.have.property('maxAccess');
+            });
+
+            it("should have an oid property", function () {
+                expect(definition).to.have.property('oid');
+            });
+
+            it("the oid should be [ ifEntry 2 ]", function () {
+                expect(definition.oid).to.eql(['ifEntry', 2]);
+            })
+        })
     });
 
     describe("The imports property", function () {
