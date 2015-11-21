@@ -438,8 +438,8 @@ named_number
 	;
 
 number
-	: MINUS number_string
-	| number_string
+	: MINUS NUMBER_STRING
+	| NUMBER_STRING
 	| defined_value
 	;
 
@@ -912,7 +912,7 @@ snmp_access_part_opt
 snmp_index_part
 	: INDEX LEFT_BRACE index_value_list RIGHT_BRACE
 		{ $$ = {part_type: 'index', value: $3}; }
-	| ARGUMENTS LEFT_BRACE value RIGHT_BRACE
+	| AUGMENTS LEFT_BRACE value RIGHT_BRACE
 		{ $$ = {part_type: 'augments', value: $3}; }
 	;
 
@@ -921,7 +921,7 @@ snmp_index_part_opt
 		{ $$ = false; }
 	| INDEX LEFT_BRACE index_value_list RIGHT_BRACE
 		{ $$ = {part_type: 'index', value: $3}; }
-	| ARGUMENTS LEFT_BRACE value RIGHT_BRACE
+	| AUGMENTS LEFT_BRACE value RIGHT_BRACE
 		{ $$ = {part_type: 'augments', value: $3}; }
 	;
 
