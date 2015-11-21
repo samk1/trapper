@@ -18,7 +18,7 @@
 "-"				                    {return 'MINUS';}
 "<"				                    {return 'LESS_THAN';}
 "|"				                    {return 'VERTICAL_BAR';}
-"::="				                {return 'DEFINITION ';}
+"::="				                {return 'DEFINITION';}
 
 "DEFINITIONS"		                {return 'DEFINITIONS';}
 "EXPLICIT"			                {return 'EXPLICIT';}
@@ -151,7 +151,7 @@ tag_default
 
 module_body
 	: export_list import_list assignment_list
-		{ $$ = {exports: $1, imports: $2, assigments: $3}; }
+		{ $$ = {exports: $1, imports: $2, assignments: $3}; }
 	| export_list assignment_list
 		{ $$ = {exports: $1, assignments: $2}; }
 	| import_list assignment_list
@@ -165,20 +165,36 @@ export_list
 
 import_list
 	: IMPORTS symbols_from_module_list SEMI_COLON
+	    { $$ = $2 }
 	;
 
 symbols_from_module_list
 	: symbols_from_module
+	    {
+	        symbols_from_module_list = {};
+	        symbols_from_module_list[$1.module_identifier] = $1.symbols;
+	        $$ = symbols_from_module_list;
+        }
 	| symbols_from_module_list symbols_from_module
+	    {
+	        $1[$2.module_identifier] = $2.symbols;
+	        $$ = $1;
+	    }
 	;
 
 symbols_from_module
 	: symbol_list FROM module_identifier
+	    { $$ = { 'module_identifier': $3, 'symbols': $1 } }
 	;
 
 symbol_list
 	: symbol
+	    { $$ = [ $1 ] }
 	| symbol_list COMMA symbol
+	    {
+	        $1.push($3);
+	        $$ = $1;
+	    }
 	;
 
 symbol
@@ -188,10 +204,14 @@ symbol
 
 assignment_list
 	: assignment
-		{ $$ = [ $1 ]; }
+		{
+		    var assignment_list = {};
+		    assignment_list[$1.assignment.identifier] = { assignment_type: $1.type, assignment_value: $1.assignment };
+		    $$ = assignment_list;
+		}
 	| assignment_list assignment
 		{
-			$1.push($2);
+		    $1[$2.assignment.identifier] = { assignment_type: $2.type, assignment_value: $2.assignment };
 			$$ = $1;
 		}
 	;
@@ -202,13 +222,13 @@ assignment
 	| macro_definition SEMI_COLON
 		{ $$ = 'not_implemented' }
 	| type_assignment
-		{ $$ = 'not_implemented' }
+		{ $$ = { type: 'type', assignment: $1 } }
 	| type_assignment SEMI_COLON
-		{ $$ = 'not_implemented' }
+		{ $$ = { type: 'type', assignment: $1 } }
 	| value_assignment
-		{ $$ = {type: 'value', assignment: $1} }
+		{ $$ = { type: 'value', assignment: $1 } }
 	| value_assignment SEMI_COLON
-		{ $$ = {type: 'value', assignment: $1} }
+		{ $$ = { type: 'value', assignment: $1 } }
 	;
 
 macro_definition
@@ -246,6 +266,7 @@ macro_body_element
 
 type_assignment
 	: IDENTIFIER_STRING DEFINITION type
+	    { $$ = { identifier: $1, type: $3 } }
 	;
 
 type
@@ -368,7 +389,7 @@ class
 	| PRIVATE
 	;
 
-explicity_or_implicit_tag
+explicit_or_implicit_tag
 	: EXPLICIT
 	| IMPLICIT
 	;
@@ -514,7 +535,7 @@ component_value_presence
 	| component_presence
 	;
 
-componenet_presence
+component_presence
 	: PRESENT
 	| ABSENT
 	| OPTIONAL
