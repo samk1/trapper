@@ -248,7 +248,7 @@ macro_body
 
 macro_body_element
 	: LEFT_PAREN
-        | RIGHT_PAREN
+    | RIGHT_PAREN
 	| VERTICAL_BAR
 	| DEFINITION
 	| "INTEGER"
@@ -271,11 +271,11 @@ type_assignment
 
 type
 	: builtin_type
-		{ $$ = 'not_implemented'; }
+		{ $$ = { type_class: 'builtin', type_def: $1 }; }
 	| defined_type
-		{ $$ = 'not_implemented'; }
+		{ $$ = { type_class: 'defined', type_def: $1 }; }
 	| defined_macro_type
-		{ $$ = $1; }
+		{ $$ = { type_class: 'defined_macro', type_def: $1 }; }
 	;
 
 defined_type
