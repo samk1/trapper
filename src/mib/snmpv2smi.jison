@@ -773,7 +773,7 @@ snmp_trap_type_macro_type
 	;
 
 snmp_textual_convention_macro_type
-	: TEXTUAL_CONVERTION
+	: TEXTUAL_CONVENTION
 		snmp_display_part_opt
 		snmp_status_part
 		snmp_descr_part
