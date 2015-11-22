@@ -21,12 +21,16 @@ describe("MibModule constructor", function () {
         expect(ifMib).to.have.property('imports');
     });
 
+    it("has a types property", function () {
+        expect(ifMib).to.have.property('types');
+    });
+
     it("has a name property which will be set to IF-MIB in this test", function () {
         expect(ifMib.name).to.be('IF-MIB');
     });
 
     describe("The definitions property", function () {
-        it("contains a mapping of identifiers to definitions");
+        it("contains a mapping of identifiers to object definitions");
 
         it("should contain a definition for the ifInOctets object", function () {
             expect(ifMib.definitions).to.have.property("ifInOctets");
@@ -62,6 +66,54 @@ describe("MibModule constructor", function () {
             it("the oid should be [ ifEntry 2 ]", function () {
                 expect(definition.oid).to.eql(['ifEntry', 2]);
             })
+        })
+    });
+
+    describe("The types property", function () {
+        it("contains mappings of identifiers to types define in the MIB module");
+
+        it("should contain the OwnerString textual convention", function () {
+            expect(ifMib.types).to.have.property('OwnerString');
+        });
+
+        it("should contain the ifEntry sequence", function () {
+            expect(ifMib.types).to.have.property('ifEntry');
+        });
+
+        describe("The OwnerString textual convention", function () {
+            var ownerString = null;
+
+            beforeEach(function () {
+                ownerString = ifMib.types.OwnerString;
+            });
+
+            it("should have a display hint property", function () {
+                expect(ownerString.displayHint).to.be("(255a)");
+            });
+
+            it("should have a status property", function () {
+                expect(ownerString.status).to.be("deprecated");
+            });
+
+            it("should have a description property", function () {
+                expect(onwerString).to.have.property("description");
+            });
+
+            it("should have a syntax property", function () {
+                var syntaxSpec = {
+                    typeClass: 'builtin',
+                    typeValue: 'octet_string',
+                    constraints: [
+                        { constraintClass: 'range', minValue: 0, maxValue: 255 }
+                    ]
+                };
+
+                expect(ownerString.syntax).to.eql(syntaxSpec);
+            });
+        });
+
+        describe("The ifEntry sequence", function () {
+
         })
     });
 
