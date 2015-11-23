@@ -3,18 +3,24 @@
  */
 
 var snmpv2smi = require('snmpv2smi.js');
+var MibObject = require('./mibobject.js');
 var fs = require('fs');
 var path = require('path');
 
-function MibRepo(search) {
-    var self = this;
+//This is not exported so the mib tree is read only
+var rootObject = new MibObject({
+    id: 1,
+    parent: null,
+    name: 'iso'
+});
 
-    self.modules = {};
+function MibRepo(search) {
+    var modules = {};
 
     function parseMibs(dirPath) {
         enumFiles(dirPath).forEach(function (filePath) {
             var module = new MibModule(filePath);
-            self.modules[module.name] = module;
+            modules[module.name] = module;
         })
     }
 
@@ -34,10 +40,36 @@ function MibRepo(search) {
         return filePaths;
     }
 
-    function buildOidTree() {
+    function buildObjectTree() {
+        Object.keys(modules).forEach(function(moduleName) {
+            var module = modules[moduleName];
 
+            Object.keys(module.objects).forEach(function(identifier) {
+                var object = objects[identifier];
+                var parentIdentifier = object.parentIdentifier;
+                var parentObject = null;
+
+                if(module.importsIdentifier(object.parentIdentifier)) {
+                    var exportingModuleName = module.getExporterForIdentifier(parentIdentifier);
+                    var exportingModule = modules[exportingModuleName];
+
+                    if(!exportingModule) {
+                        throw new Error("Undefined module " + exportingModuleName + " in " + moduleName)
+                    }
+
+                    parentObject = exportingModule.objects[parentIdentifier];
+                } else if(moduleName === 'SNMPv2-SMI' && parentIdentifier === 'iso') { //special case for root object
+                    parentObject = rootObject;
+                } else {
+                    parentObject = module.objects[parentIdentifier];
+                }
+
+                parentObject.addChild(object);
+            })
+        })
     }
 
+    //Parse mib modules in search paths
     if (Array.isArray(search)) {
         search.forEach(function (dirPath) {
             parseMibs(dirPath)
@@ -45,20 +77,23 @@ function MibRepo(search) {
     } else if(typeof search === 'string') {
         parseMibs(search)
     }
+
+    //Makes a path from all mib objects in all modules to rootObject (.1)
+    buildObjectTree();
 }
 
-MibRepo.prototype.getObjectDefinition = function(oidString) {
-    var mibOid = MibOid.parseOid(oidString);
-    var node = this.oidTree[1];
+MibRepo.prototype.getMibObjectData = function(mibOid) {
+    var mibObject = rootObject;
 
     while(!mibOid.end()) {
-        node = node.getChild(mibOid.nextIdentifier());
+        mibObject = mibObject.getChild(mibOid.nextIdentifier());
 
         if (!node) {
             return null;
         }
     }
 
-    return node;
+    return mibObject.getData();
 };
 
+exports.MibRepo = MibRepo;
