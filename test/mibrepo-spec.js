@@ -6,9 +6,15 @@ var MibRepo = require('../src/mib/mibrepo.js').MibRepo;
 var MibModule = require('../src/mib/mibmodule.js').MibModule;
 var expect = require('expect.js');
 
-//Test mib reporitoriy mib path
+//Test mib repository mib path
 var path = "C:\\usr\\share\\snmp\\mibs"; //path to test mibs
 describe("MibRepo prototype", function () {
+    var testMibRepo = null;
+
+    beforeEach(function () {
+        testMibRepo = new MibRepo(path);
+    });
+
     describe("Constructor", function () {
         it("should take a string argument containing the path to search for mib files", function () {
             expect(new MibRepo(path)).not.to.be(null);
@@ -37,7 +43,30 @@ describe("MibRepo prototype", function () {
     // * MODULE-NAME::object
     // * MODULE-NAME::object.1.0
     describe("parseOid function", function () {
+        it("should parse iso", function () {
+            var mibOid = testMibRepo.parseOid('iso');
+            expect(mibOid.identifiers).to.eql([ 1 ]);
+        });
 
+        it("should parse IF-MIB::ifEntry", function () {
+            var mibOid = testMibRepo.parseOid('IF-MIB::ifEntry');
+            expect(mibOid.identifiers).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
+        });
+
+        it("should parse .iso.org.dod.internet.mgmt.mib-2.interfaces.ifTable.ifEntry", function () {
+            var mibOid = testMibRepo.parseOid('.iso.org.dod.internet.mgmt.mib-2.interfaces.ifTable.ifEntry');
+            expect(mibOid.identifiers).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
+        });
+
+        it("should parse IF-MIB::ifEntry.1", function () {
+            var mibOid = testMibRepo.parseOid('IF-MIB::ifEntry.1');
+            expect(mibOid.identifiers).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1, 1 ]);
+        });
+
+        it("should resolve the oid to a string correctly", function () {
+            var mibOid = testMibRepo.parseOid('IF-MIB::ifEntry.1.2.3');
+            expect(mibOid.string).to.be('IF-MIB::ifIndex.2.3');
+        });
     });
 
     //Returns object definition data given MibOid object
