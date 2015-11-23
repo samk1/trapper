@@ -17,7 +17,7 @@ oid_string
     : MODULE_IDENTIFIER DOUBLE_COLON IDENTIFIER
         {
             $$ = {
-                class: 'module_id_with_object_name'
+                class: 'module_id_with_object_name',
                 module_identifier: $1,
                 object_name: $3
             };
@@ -25,7 +25,7 @@ oid_string
     | MODULE_IDENTIFIER DOUBLE_COLON IDENTIFIER DOT numeric_identifier_list
         {
             $$ = {
-                class: 'module_id_with_object_name_and_identifier_list'
+                class: 'module_id_with_object_name_and_identifier_list',
                 module_identifier: $1,
                 object_name: $3,
                 identifier_list: $5

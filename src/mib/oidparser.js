@@ -86,7 +86,7 @@ switch (yystate) {
 case 1:
 
             this.$ = {
-                class: 'module_id_with_object_name'
+                class: 'module_id_with_object_name',
                 module_identifier: $$[$0-2],
                 object_name: $$[$0]
             };
@@ -95,7 +95,7 @@ break;
 case 2:
 
             this.$ = {
-                class: 'module_id_with_object_name_and_identifier_list'
+                class: 'module_id_with_object_name_and_identifier_list',
                 module_identifier: $$[$0-4],
                 object_name: $$[$0-2],
                 identifier_list: $$[$0]
