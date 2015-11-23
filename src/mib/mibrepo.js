@@ -2,7 +2,6 @@
  * Created by Samuel on 21/11/2015.
  */
 
-var snmpv2smi = require('snmpv2smi.js');
 var MibObject = require('./mibobject.js');
 var fs = require('fs');
 var path = require('path');
