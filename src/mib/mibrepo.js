@@ -3,6 +3,9 @@
  */
 
 var MibObject = require('./mibobject.js');
+var MibOid = require('./miboid');
+var oidparser = require('./oidparser.js');
+var OID_SYNTAX_CLASSES = require('./mibconstants.js').OID_SYNTAX_CLASSES;
 var fs = require('fs');
 var path = require('path');
 
@@ -27,6 +30,50 @@ function MibRepo(search) {
         }
         mibOid.reset();
         return mibObject.getData();
+    }
+
+    function parseOid(oidString) {
+        var oidSyntax = oidparser.parse(oidString);
+        var identifiers = [];
+        var string = null;
+        var mibOid = null;
+
+        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleIdWithObjectName) {
+            var moduleName = oidSyntax.module_name;
+            var objectName = oidSyntax.module_name;
+
+            string = moduleName + '::' + objectName;
+
+            var module = modules[moduleName];
+            if(!module) {
+                return null;
+            }
+
+            var object = module.objects[objectName];
+            if(!object) {
+                return null;
+            }
+
+            //Trace to root
+            while(module.name !== 'SNMPv2-SMI' && object.identifier !== 'iso') {
+                identifiers.unshift(object.numericIdentifier);
+
+                if(module.importsIdentifier(object.parentIdentifier)) {
+                    module = module.getExporterForIndentifier(object.parentIdentifier);
+                    object = module[object.parentIdentifier];
+                } else {
+                    object = module[object.parentIdentifier];
+                }
+            }
+
+            //Add root
+            identifiers.unshift(1);
+
+            mibOid = new MibOid({
+                identifiers: identifiers,
+                string: string
+            });
+        }
     }
 
     function parseMibs(dirPath) {
