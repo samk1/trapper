@@ -18,7 +18,7 @@ oid_string
         {
             $$ = {
                 class: 'module_id_with_object_name',
-                module_identifier: $1,
+                module_name: $1,
                 object_name: $3
             };
         }
@@ -26,7 +26,7 @@ oid_string
         {
             $$ = {
                 class: 'module_id_with_object_name_and_identifier_list',
-                module_identifier: $1,
+                module_name: $1,
                 object_name: $3,
                 identifier_list: $5
             };
