@@ -52,26 +52,26 @@ describe("MibOid prototype", function () {
         });
 
         it("returns the first identifier on first call", function () {
-            expect(testMibOid.nextIdentifier().to.be(1));
+            expect(testMibOid.nextIdentifier()).to.be(1);
         });
 
         it("returns the second identifier on second call", function () {
             testMibOid.nextIdentifier();
-            expect(testMibOid.nextIdentifier().to.be(2));
+            expect(testMibOid.nextIdentifier()).to.be(2);
         });
 
         it("returns the third identifier on third call", function () {
             testMibOid.nextIdentifier();
             testMibOid.nextIdentifier();
-            expect(testMibOid.nextIdentifier().to.be(3));
+            expect(testMibOid.nextIdentifier()).to.be(3);
         });
 
         it("always returns null when there are no more identifiers", function () {
             testMibOid.nextIdentifier();
             testMibOid.nextIdentifier();
             testMibOid.nextIdentifier();
-            expect(testMibOid.nextIdentifier().to.be(null));
-            expect(testMibOid.nextIdentifier().to.be(null));
+            expect(testMibOid.nextIdentifier()).to.be(null);
+            expect(testMibOid.nextIdentifier()).to.be(null);
         });
     });
 
@@ -112,7 +112,7 @@ describe("MibOid prototype", function () {
             testMibOid.nextIdentifier();
             testMibOid.nextIdentifier();
 
-            expect(testMIbOid.atEnd).to.be(true);
+            expect(testMibOid.atEnd).to.be(true);
         });
     });
 });
