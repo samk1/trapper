@@ -85,14 +85,14 @@ function MibRepo(search) {
 MibRepo.prototype.getMibObjectData = function(mibOid) {
     var mibObject = rootObject;
 
-    while(!mibOid.end()) {
+    while(!mibOid.atEnd) {
         mibObject = mibObject.getChild(mibOid.nextIdentifier());
 
         if (!node) {
             return null;
         }
     }
-
+    mibOid.reset();
     return mibObject.getData();
 };
 
