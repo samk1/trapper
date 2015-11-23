@@ -7,15 +7,28 @@ var MibObject = require('./mibobject.js');
 var fs = require('fs');
 var path = require('path');
 
-//This is not exported so the mib tree is read only
-var rootObject = new MibObject({
-    id: 1,
-    parent: null,
-    name: 'iso'
-});
-
 function MibRepo(search) {
     var modules = {};
+
+    var rootObject = new MibObject({
+        id: 1,
+        parent: null,
+        name: 'iso'
+    });
+
+    function getMibObjectData(mibOid) {
+        var mibObject = rootObject;
+
+        while(!mibOid.atEnd) {
+            mibObject = mibObject.getChild(mibOid.nextIdentifier());
+
+            if (!node) {
+                return null;
+            }
+        }
+        mibOid.reset();
+        return mibObject.getData();
+    }
 
     function parseMibs(dirPath) {
         enumFiles(dirPath).forEach(function (filePath) {
@@ -80,20 +93,10 @@ function MibRepo(search) {
 
     //Makes a path from all mib objects in all modules to rootObject (.1)
     buildObjectTree();
+
+    Object.defineProperty(this, 'getMibObjectData', {
+        value: getMibObjectData
+    });
 }
-
-MibRepo.prototype.getMibObjectData = function(mibOid) {
-    var mibObject = rootObject;
-
-    while(!mibOid.atEnd) {
-        mibObject = mibObject.getChild(mibOid.nextIdentifier());
-
-        if (!node) {
-            return null;
-        }
-    }
-    mibOid.reset();
-    return mibObject.getData();
-};
 
 exports.MibRepo = MibRepo;
