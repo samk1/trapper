@@ -2,7 +2,7 @@
  * Created by Samuel on 21/11/2015.
  */
 
-var smiParser = require('./snmpv2smi.js').parser;
+var smiParser = require('./smiparser.js').parser;
 var fs = require('fs');
 
 function MibModule(mibPath) {
