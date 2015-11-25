@@ -38,11 +38,10 @@ function MibRepo(search) {
         var string = null;
         var mibOid = null;
 
-        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleIdWithObjectName) {
+        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleIdWithObjectName ||
+           oidSyntax.class === OID_SYNTAX_CLASSES.ModuleIdWithObjectNameAndIdentifierList) {
             var moduleName = oidSyntax.module_name;
             var objectName = oidSyntax.module_name;
-
-            string = moduleName + '::' + objectName;
 
             var module = modules[moduleName];
             if(!module) {
@@ -68,12 +67,12 @@ function MibRepo(search) {
 
             //Add root
             identifiers.unshift(1);
-
-            mibOid = new MibOid({
-                identifiers: identifiers,
-                string: string
-            });
         }
+
+        return new MibOid({
+            identifiers: identifiers,
+            string: string
+        });
     }
 
     function parseMibs(dirPath) {

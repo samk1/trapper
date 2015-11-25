@@ -14,8 +14,6 @@ exports.DEFINED_MACROS = {
 };
 
 exports.OID_SYNTAX_CLASSES = {
-    ModuleIdWithObjectName: 'module_id_with_object_name',
-    ModuleIdWithObjectNameAndIdentifierList: 'module_id_with_object_name_and_identifier_list',
-    IdentifierListOnly: 'identifier_list_only',
-    StringIdentifierListOnly: 'string_identifier_list_only'
+    ModuleObject: 'module_object',
+    IdentifierList: 'identifier_list'
 };
