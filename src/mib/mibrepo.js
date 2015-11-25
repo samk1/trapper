@@ -20,15 +20,16 @@ function MibRepo(search) {
 
     function getMibObjectData(mibOid) {
         var mibObject = rootObject;
+        var identifiers = mibOid.identifiersCopy(); //or names
+        var identifier; //or name
 
-        while(!mibOid.atEnd) {
-            mibObject = mibObject.getChild(mibOid.nextIdentifier());
+        while(identifier = identifiers.unshift()) {
+            mibObject = mibObject.children[identifier];
 
-            if (!node) {
+            if (!mibObject) {
                 return null;
             }
         }
-        mibOid.reset();
         return mibObject.getData();
     }
 
