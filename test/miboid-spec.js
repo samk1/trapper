@@ -12,6 +12,7 @@ describe("MibOid prototype", function () {
         beforeEach(function () {
             testMibOid = new MibOid({
                 identifiers: [ 1, 2, 3 ],
+                names: ['foo', 'bar', 'baz'],
                 string: "TEST-MIB::testObject"
             });
         });
@@ -32,6 +33,7 @@ describe("MibOid prototype", function () {
         beforeEach(function () {
             testMibOid = new MibOid({
                 identifiers: [ 1, 2, 3 ],
+                names: ['foo', 'bar', 'baz'],
                 string: "TEST-MIB::testObject"
             });
         });
