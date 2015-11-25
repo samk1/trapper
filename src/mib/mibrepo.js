@@ -38,8 +38,7 @@ function MibRepo(search) {
         var string = null;
         var mibOid = null;
 
-        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleIdWithObjectName ||
-           oidSyntax.class === OID_SYNTAX_CLASSES.ModuleIdWithObjectNameAndIdentifierList) {
+        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleObject) {
             var moduleName = oidSyntax.module_name;
             var objectName = oidSyntax.module_name;
 
@@ -54,14 +53,14 @@ function MibRepo(search) {
             }
 
             //Trace to root
-            while(module.name !== 'SNMPv2-SMI' && object.identifier !== 'iso') {
-                identifiers.unshift(object.numericIdentifier);
+            while(module.name !== 'SNMPv2-SMI' && object.name !== 'iso') {
+                identifiers.unshift(object.identifier);
 
-                if(module.importsIdentifier(object.parentIdentifier)) {
-                    module = module.getExporterForIndentifier(object.parentIdentifier);
-                    object = module[object.parentIdentifier];
+                if(module.importsName(object.parentObjectName)) {
+                    module = module.getExporterForName(object.parentObjectName);
+                    object = module[object.parentObjectName];
                 } else {
-                    object = module[object.parentIdentifier];
+                    object = module[object.parentObjectName];
                 }
             }
 
@@ -102,24 +101,24 @@ function MibRepo(search) {
         Object.keys(modules).forEach(function(moduleName) {
             var module = modules[moduleName];
 
-            Object.keys(module.objects).forEach(function(identifier) {
-                var object = objects[identifier];
-                var parentIdentifier = object.parentIdentifier;
+            Object.keys(module.objects).forEach(function(objectName) {
+                var object = objects[objectName];
+                var parentObjectName = object.parentObjectName;
                 var parentObject = null;
 
-                if(module.importsIdentifier(object.parentIdentifier)) {
-                    var exportingModuleName = module.getExporterForIdentifier(parentIdentifier);
+                if(module.importsName(object.parentObjectName)) {
+                    var exportingModuleName = module.getExporterForName(parentObjectName);
                     var exportingModule = modules[exportingModuleName];
 
                     if(!exportingModule) {
-                        throw new Error("Undefined module " + exportingModuleName + " in " + moduleName)
+                        throw new Error("Unknown module " + exportingModuleName + " imported by " + moduleName)
                     }
 
-                    parentObject = exportingModule.objects[parentIdentifier];
-                } else if(moduleName === 'SNMPv2-SMI' && parentIdentifier === 'iso') { //special case for root object
+                    parentObject = exportingModule.objects[parentObjectName];
+                } else if(moduleName === 'SNMPv2-SMI' && parentObjectName === 'iso') { //special case for root object
                     parentObject = rootObject;
                 } else {
-                    parentObject = module.objects[parentIdentifier];
+                    parentObject = module.objects[parentObjectName];
                 }
 
                 parentObject.addChild(object);
