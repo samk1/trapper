@@ -14,19 +14,19 @@ describe("MibObject prototype", function() {
         it("the spec name property is the identifier property of the object", function () {
             var testObject = new MibObject({name: 'iso'});
 
-            expect(testObject.identifier).to.be('iso');
+            expect(testObject.name).to.be('iso');
         });
 
-        it("the spec parent property becomes the parentIdentifier property of the object", function () {
-            var testObject = new MibObject({parent: 'mib-2'});
+        it("the spec parent property becomes the parentName property of the object", function () {
+            var testObject = new MibObject({parentName: 'mib-2'});
 
-            expect(testObject.parentIdentifier).to.be('mib-2');
+            expect(testObject.parentName).to.be('mib-2');
         });
 
-        it("the spec id property becomes the numericIdentifier property of the object", function() {
-            var testObject = new MibObject({id: 2});
+        it("the spec id property becomes the identifier property of the object", function() {
+            var testObject = new MibObject({identifier: 2});
 
-            expect(testObject.numericIdentifier).to.be(2);
+            expect(testObject.identifier).to.be(2);
         });
 
         it("if no macro property is present the typeName of the object is object_identifier", function () {
@@ -68,18 +68,18 @@ describe("MibObject prototype", function() {
     });
 
     describe("the getData function", function () {
-        it("returns an object containing the typeName, identifier, parentIdentifier and numericIdentifier", function () {
+        it("returns an object containing the typeName, identifier, parentName and identifier", function () {
             var testObject = new MibObject({
                 name: 'iso',
-                parent: 'mib-2',
-                id: 2
+                parentName: 'mib-2',
+                identifier: 2
             });
 
             var dataSpec = {
                 typeName: BUILTIN_TYPES.ObjectIdentifier,
-                numericIdentifier: 2,
-                parentIdentifier: 'mib-2',
-                identifier: 'iso'
+                identifier: 2,
+                parentName: 'mib-2',
+                name: 'iso'
             };
 
             expect(testObject.getData()).to.eql(dataSpec)
@@ -88,8 +88,8 @@ describe("MibObject prototype", function() {
         it("returns an object with the macro data properties if that was specified", function () {
             var testObject = new MibObject({
                 name: 'ifIndex',
-                parent: 'ifEntry',
-                id: 2,
+                parentName: 'ifEntry',
+                identifier: 2,
                 macro: {
                     macroTypeName: DEFINED_MACROS.ObjectIdentity,
                     macroData: {
@@ -100,9 +100,9 @@ describe("MibObject prototype", function() {
 
             var dataSpec = {
                 typeName: DEFINED_MACROS.ObjectIdentity,
-                numericIdentifier: 2,
-                parentIdentifier: 'ifEntry',
-                identifier: 'ifIndex',
+                identifier: 2,
+                parentName: 'ifEntry',
+                name: 'ifIndex',
                 description: 'test'
             };
 
@@ -114,17 +114,12 @@ describe("MibObject prototype", function() {
         it("the parent identifier of the child must match the identifier of the parent", function () {
             var parentObject = new MibObject({
                 name: 'ifEntry',
-                parent: 'ifTable'
+                parentName: 'ifTable'
             });
 
             var badChildObject = new MibObject({
                 name: 'ifIndex',
-                parent: 'wrong'
-            });
-
-            var goodChildObject = new MibObject({
-                name: 'ifIndex',
-                parent: 'ifEntry'
+                parentName: 'wrong'
             });
 
             expect(parentObject.addChild).withArgs(badChildObject).to.be.throwError();
@@ -133,42 +128,57 @@ describe("MibObject prototype", function() {
         it("throws an error when the same child id is added twice", function () {
             var parentObject = new MibObject({
                 name: 'ifEntry',
-                parent: 'ifTable'
+                parentName: 'ifTable'
             });
 
             var childObject1 = new MibObject({
                 name: 'test1',
-                parent: 'ifEntry',
-                id: 1
+                parentName: 'ifEntry',
+                identifier: 1
             });
 
             var childObject2 = new MibObject({
                 name: 'test2',
-                parent: 'ifEntry',
-                id: 1
+                parentName: 'ifEntry',
+                identifier: 1
             });
 
             parentObject.addChild(childObject1);
             expect(parentObject.addChild).withArgs(childObject2).to.be.throwError();
         })
-    });
 
-    describe("the get child function", function () {
-        it("returns the childObject that was added given the numericIdentifier", function () {
+        it("adds a reference to the child object in the children property keyed to the child name", function () {
             var parentObject = new MibObject({
                 name: 'ifEntry',
-                parent: 'ifTable'
+                parentName: 'ifTable'
             });
 
             var childObject = new MibObject({
-                name: 'test',
-                parent: 'ifEntry',
-                id: 1
+                name: 'ifIndex',
+                parentName: 'ifEntry',
+                identifier: 1
             });
 
             parentObject.addChild(childObject);
 
-            expect(parentObject.getChild(1)).to.be(childObject);
+            expect(parentObject.children['ifIndex']).to.be(childObject);
+        });
+
+        it("adds a reference to the child object in the children property keyed to the child identifier", function () {
+            var parentObject = new MibObject({
+                name: 'ifEntry',
+                parentName: 'ifTable'
+            });
+
+            var childObject = new MibObject({
+                name: 'test',
+                parentName: 'ifEntry',
+                identifier: 1
+            });
+
+            parentObject.addChild(childObject);
+
+            expect(parentObject.children[1]).to.be(childObject);
         })
-    })
+    });
 });

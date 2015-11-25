@@ -5,9 +5,9 @@
 var BUILTIN_TYPES = require('./mibconstants.js').BUILTIN_TYPES;
 
 function MibObject(spec) {
-    this.identifier = spec.name || null;
-    this.parentIdentifier = spec.parent || null;
-    this.numericIdentifier = spec.id || null;
+    this.name = spec.name || null;
+    this.parentName = spec.parentName || null;
+    this.identifier = spec.identifier || null;
     this.typeName = BUILTIN_TYPES.ObjectIdentifier;
 
     if(spec.macro) {
@@ -24,23 +24,20 @@ function MibObject(spec) {
 }
 
 MibObject.prototype.addChild = function(childObject) {
-    if(this.children[childObject.numericIdentifier]) {
-        throw(new Error("Can not add a child with the same identifier twice"));
+    if(this.children[childObject.identifier] || this.children[childObject.name]) {
+        throw(new Error("Can not add a child with the same name or identifier twice"));
     }
 
-    this.children[childObject.numericIdentifier] = childObject;
-};
-
-MibObject.prototype.getChild = function(childNumericIdentifier) {
-    return this.children[childNumericIdentifier];
+    this.children[childObject.identifier] = childObject;
+    this.children[childObject.name] = childObject;
 };
 
 MibObject.prototype.getData = function () {
     var objectData = {};
 
-    objectData.numericIdentifier = this.numericIdentifier;
-    objectData.parentIdentifier = this.parentIdentifier;
     objectData.identifier = this.identifier;
+    objectData.parentName = this.parentName;
+    objectData.name = this.name;
     objectData.typeName = this.typeName;
 
     if(this.macroData) {
