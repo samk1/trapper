@@ -4,6 +4,7 @@
 
 var MibObject = require('./mibobject.js');
 var MibOid = require('./miboid');
+var MibModule = require('./mibmodule.js');
 var oidparser = require('./oidparser.js');
 var OID_SYNTAX_CLASSES = require('./mibconstants.js').OID_SYNTAX_CLASSES;
 var fs = require('fs');
@@ -23,7 +24,7 @@ function MibRepo(search) {
         var identifiers = mibOid.identifiersCopy(); //or names
         var identifier; //or name
 
-        while(identifier = identifiers.unshift()) {
+        while(identifier = identifiers.shift()) {
             mibObject = mibObject.children[identifier];
 
             if (!mibObject) {
@@ -33,46 +34,108 @@ function MibRepo(search) {
         return mibObject.getData();
     }
 
-    function parseOid(oidString) {
-        var oidSyntax = oidparser.parse(oidString);
-        var identifiers = [];
-        var string = null;
-        var mibOid = null;
+    function parseModuleObjectOidSyntax(oidSyntax) {
+        var moduleName = oidSyntax.module_name;
+        var objectName = oidSyntax.object_name;
+        var postIdentifiers = oidSyntax.post_identifier_list;
+        var oidIdentifiers = [];
+        var oidNames = [];
 
-        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleObject) {
-            var moduleName = oidSyntax.module_name;
-            var objectName = oidSyntax.module_name;
+        var module = modules[moduleName];
+        if (!module) {
+            throw(new Error("Unknown module " + moduleName));
+        }
 
-            var module = modules[moduleName];
-            if(!module) {
-                return null;
+        var object = module.objects[objectName];
+        if (!object) {
+            throw(new Error(objectName + "is not defined in " + moduleName))
+        }
+
+        //Trace to root
+        while (module.name !== 'SNMPv2-SMI' && object.name !== 'iso') {
+            oidIdentifiers.unshift(object.identifier);
+            oidNames.unshift(object.name);
+
+            if (module.importsName(object.parentName)) {
+                module = module.getExporterForName(object.parentName);
+                object = module[object.parentName];
+            } else {
+                object = module[object.parentName];
             }
+        }
 
-            var object = module.objects[objectName];
-            if(!object) {
-                return null;
-            }
+        //Add root
+        oidIdentifiers.unshift(1);
+        oidNames.unshift('iso');
 
-            //Trace to root
-            while(module.name !== 'SNMPv2-SMI' && object.name !== 'iso') {
-                identifiers.unshift(object.identifier);
+        if (postIdentifiers) {
+            var postIdentifier;
 
-                if(module.importsName(object.parentObjectName)) {
-                    module = module.getExporterForName(object.parentObjectName);
-                    object = module[object.parentObjectName];
-                } else {
-                    object = module[object.parentObjectName];
+            while (postIdentifier = postIdentifiers.pop()) {
+                if (object = object.children[postIdentifier]) {
+                    oidIdentifiers.push(object.identifier);
+                    oidNames.push(object.name);
+                }
+                else {
+                    oidIdentifiers.concat(postIdentifiers);
+                    oidNames.concat(postIdentifiers);
+                    break;
                 }
             }
 
-            //Add root
-            identifiers.unshift(1);
+            moduleName = object.moduleName;
+            objectName = object.name;
+        }
+        return new MibOid({
+            moduleName: moduleName,
+            objectName: objectName,
+            identifiers: oidIdentifiers,
+            names: oidNames
+        });
+    }
+
+    function parseIdentifierListOidSyntax(oidSyntax) {
+        var mibOid;
+        var oidNames = [];
+        var oidIdentifiers = [];
+        var identifiers = oidSyntax.identifier_list;
+        var identifier;
+        var object = rootObject;
+
+        //It's *almost* the same as getMibObjectData
+        //It's exactly the same as the loop in parseModuleObjectOidSyntax
+        while (identifier = identifiers.pop()) {
+            if (object = object.children[identifier]) {
+                oidIdentifiers.push(object.identifier);
+                oidNames.push(object.name);
+            }
+            else {
+                oidIdentifiers.concat(identifier);
+                oidNames.concat(identifier);
+                break;
+            }
         }
 
-        return new MibOid({
-            identifiers: identifiers,
-            string: string
+        var moduleName = object.name;
+        var objectName = object.moduleName;
+
+        mibOid = new MibOid({
+            moduleName: moduleName,
+            objectName: objectName,
+            identifiers: oidIdentifiers,
+            names: oidNames
         });
+        return mibOid;
+    }
+
+    function parseOid(oidString) {
+        var oidSyntax = oidparser.parse(oidString);
+
+        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleObject) {
+            return parseModuleObjectOidSyntax(oidSyntax);
+        } else if (oidSyntax.syntax_class === OID_SYNTAX_CLASSES.IdentifierList) {
+            return parseIdentifierListOidSyntax(oidSyntax);
+        }
     }
 
     function parseMibs(dirPath) {
@@ -104,10 +167,10 @@ function MibRepo(search) {
 
             Object.keys(module.objects).forEach(function(objectName) {
                 var object = objects[objectName];
-                var parentObjectName = object.parentObjectName;
+                var parentObjectName = object.parentName;
                 var parentObject = null;
 
-                if(module.importsName(object.parentObjectName)) {
+                if(module.importsName(object.parentName)) {
                     var exportingModuleName = module.getExporterForName(parentObjectName);
                     var exportingModule = modules[exportingModuleName];
 

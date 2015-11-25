@@ -5,9 +5,14 @@
 var BUILTIN_TYPES = require('./mibconstants.js').BUILTIN_TYPES;
 
 function MibObject(spec) {
+    if(!spec.name || !spec.identifier) {
+        throw(new Error('Name and Identifier must be specified'));
+    }
+
     this.name = spec.name || null;
     this.parentName = spec.parentName || null;
     this.identifier = spec.identifier || null;
+    this.moduleName = spec.moduleName || null;
     this.typeName = BUILTIN_TYPES.ObjectIdentifier;
 
     if(spec.macro) {
