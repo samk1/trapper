@@ -11,119 +11,89 @@ var fs = require('fs');
 var path = require('path');
 
 function MibRepo(search) {
-    var modules = {};
+    var mibModules = {};
 
-    var rootObject = new MibObject({
-        id: 1,
-        parent: null,
-        name: 'iso'
-    });
+    var mibObjectTree = new MibObjectTree();
 
     function getMibObjectData(mibOid) {
-        var mibObject = rootObject;
-        var identifiers = mibOid.identifiersCopy(); //or names
-        var identifier; //or name
-
-        while(identifier = identifiers.shift()) {
-            mibObject = mibObject.children[identifier];
-
-            if (!mibObject) {
-                return null;
-            }
-        }
-        return mibObject.getData();
+        return mibObjectTree.getObject(mibOid.identifiersCopy()).getData();
     }
 
     function parseModuleObjectOidSyntax(oidSyntax) {
         var moduleName = oidSyntax.module_name;
-        var objectName = oidSyntax.object_name;
+        var objectDescriptor = oidSyntax.object_name;
         var postIdentifiers = oidSyntax.post_identifier_list;
-        var oidIdentifiers = [];
-        var oidNames = [];
 
-        var module = modules[moduleName];
+        var module = mibModules[moduleName];
         if (!module) {
             throw(new Error("Unknown module " + moduleName));
         }
 
-        var object = module.objects[objectName];
+        var object = module.objects[objectDescriptor];
         if (!object) {
-            throw(new Error(objectName + "is not defined in " + moduleName))
+            throw(new Error(objectDescriptor + "is not defined in " + moduleName))
         }
 
         //Trace to root
-        while (module.name !== 'SNMPv2-SMI' && object.name !== 'iso') {
-            oidIdentifiers.unshift(object.identifier);
-            oidNames.unshift(object.name);
-
-            if (module.importsName(object.parentName)) {
-                module = module.getExporterForName(object.parentName);
-                object = module[object.parentName];
-            } else {
-                object = module[object.parentName];
-            }
-        }
-
-        //Add root
-        oidIdentifiers.unshift(1);
-        oidNames.unshift('iso');
+        var oidDescriptors = mibObjectTree.getDescriptorPath(object);
+        var oidIdentifiers = mibObjectTree.getIdentifierPath(object);
 
         if (postIdentifiers) {
             var postIdentifier;
 
             while (postIdentifier = postIdentifiers.pop()) {
-                if (object = object.children[postIdentifier]) {
+                if (object = mibObjectTree.getChildObject(object, postIdentifier)) {
                     oidIdentifiers.push(object.identifier);
-                    oidNames.push(object.name);
+                    oidDescriptors.push(object.descriptor);
                 }
                 else {
                     oidIdentifiers.concat(postIdentifiers);
-                    oidNames.concat(postIdentifiers);
+                    oidDescriptors.concat(postIdentifiers);
                     break;
                 }
             }
 
             moduleName = object.moduleName;
-            objectName = object.name;
+            objectDescriptor = object.descriptor;
         }
         return new MibOid({
             moduleName: moduleName,
-            objectName: objectName,
+            objectName: objectDescriptor,
             identifiers: oidIdentifiers,
-            names: oidNames
+            names: oidDescriptors
         });
     }
 
     function parseIdentifierListOidSyntax(oidSyntax) {
         var mibOid;
-        var oidNames = [];
+        var oidDescriptors = [];
         var oidIdentifiers = [];
         var identifiers = oidSyntax.identifier_list;
         var identifier;
-        var object = rootObject;
+        var object;
 
         //It's *almost* the same as getMibObjectData
         //It's exactly the same as the loop in parseModuleObjectOidSyntax
         while (identifier = identifiers.pop()) {
-            if (object = object.children[identifier]) {
+            if (object = mibObjectTree.getChildObject(object, identifier)) {
                 oidIdentifiers.push(object.identifier);
-                oidNames.push(object.name);
+                oidDescriptors.push(object.descriptor);
             }
             else {
-                oidIdentifiers.concat(identifier);
-                oidNames.concat(identifier);
+                oidIdentifiers.concat(identifiers);
+                oidDescriptors.concat(identifiers);
                 break;
             }
         }
 
-        var moduleName = object.name;
+        var moduleName = object.descriptor;
         var objectName = object.moduleName;
 
         mibOid = new MibOid({
             moduleName: moduleName,
             objectName: objectName,
             identifiers: oidIdentifiers,
-            names: oidNames
+            names: oidDescriptors
         });
         return mibOid;
     }
@@ -141,7 +111,7 @@ function MibRepo(search) {
     function parseMibs(dirPath) {
         enumFiles(dirPath).forEach(function (filePath) {
             var module = new MibModule(filePath);
-            modules[module.name] = module;
+            mibModules[module.name] = module;
         })
     }
 
@@ -162,31 +132,30 @@ function MibRepo(search) {
     }
 
     function buildObjectTree() {
-        Object.keys(modules).forEach(function(moduleName) {
-            var module = modules[moduleName];
+        Object.keys(mibModules).forEach(function(moduleName) {
+            var module = mibModules[moduleName];
 
-            Object.keys(module.objects).forEach(function(objectName) {
-                var object = module.objects[objectName];
-                var parentObjectName = object.parentName;
-                var parentObject = null;
+            Object.keys(module.objects).forEach(function(objectDescriptor) {
+                var path = [];
+                var object = module.objects[objectDescriptor];
+                var parentDescriptor;
 
-                if(module.importsName(object.parentName)) {
-                    var exportingModuleName = module.getExporterForName(parentObjectName);
-                    var exportingModule = modules[exportingModuleName];
+                 do {
+                    object.oidPart.forEach(function(element) {
+                        path.unshift(element)
+                    });
 
-                    if(!exportingModule) {
-                        throw new Error("Unknown module " + exportingModuleName + " imported by " + moduleName)
+                    parentDescriptor = object.oidValue[0].descriptor;
+                    if(module.importsDescriptor(parentDescriptor)) {
+                        var parentModuleName = module.getExporterForDescriptor(parentDescriptor);
+                        object = mibModules[parentModuleName].objects[parentDescriptor];
+                    } else {
+                        object = module.objects[parentDescriptor];
                     }
+                } while(!atRoot(object));
 
-                    parentObject = exportingModule.objects[parentObjectName];
-                } else if(moduleName === 'SNMPv2-SMI' && parentObjectName === 'iso') { //special case for root object
-                    parentObject = rootObject;
-                } else {
-                    parentObject = module.objects[parentObjectName];
-                }
-
-                parentObject.addChild(object);
-            })
+                mibObjectTree.addObject(path, object);
+            });
         })
     }
 

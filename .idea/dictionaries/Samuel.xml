@@ -2,6 +2,12 @@
   <dictionary name="Samuel">
     <words>
       <w>eventstream</w>
+      <w>mibconstants</w>
+      <w>mibmodule</w>
+      <w>mibobject</w>
+      <w>miboid</w>
+      <w>mibs</w>
+      <w>oidparser</w>
     </words>
   </dictionary>
 </component>

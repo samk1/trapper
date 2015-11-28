@@ -13,12 +13,12 @@ function MibModule(mibPath) {
 
     function addImport(importSyntax) {
         var moduleName = importSyntax.module_name;
-        importSyntax.object_names.forEach(function (objectName) {
-            if(imports[objectName]) {
-                throw(new Error(`${objectName} imported twice in module ${mibPath}`));
+        importSyntax.object_names.forEach(function (objectDescriptor) {
+            if(imports[objectDescriptor]) {
+                throw(new Error(`${objectDescriptor} imported twice in module ${mibPath}`));
             }
 
-            imports[objectName] = moduleName;
+            imports[objectDescriptor] = moduleName;
         });
     }
 
@@ -95,12 +95,12 @@ function MibModule(mibPath) {
     });
 }
 
-MibModule.prototype.getExporterForName = function (objectName) {
-    return this.imports[objectName] || null;
+MibModule.prototype.getExporterForDescriptor = function (objectDescriptor) {
+    return this.imports[objectDescriptor] || null;
 };
 
-MibModule.prototype.importsName = function (objectName) {
-    return !!this.imports[objectName];
+MibModule.prototype.importsDescriptor = function (objectDescriptor) {
+    return !!this.imports[objectDescriptor];
 };
 
 exports.MibModule = MibModule;
