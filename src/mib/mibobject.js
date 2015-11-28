@@ -24,18 +24,7 @@ function MibObject(spec) {
         this.typeName = macro.macroTypeName;
         this.macroData = macro.macroData;
     }
-
-    this.children = {};
 }
-
-MibObject.prototype.addChild = function(childObject) {
-    if(this.children[childObject.identifier] || this.children[childObject.name]) {
-        throw(new Error("Can not add a child with the same name or identifier twice"));
-    }
-
-    this.children[childObject.identifier] = childObject;
-    this.children[childObject.name] = childObject;
-};
 
 MibObject.prototype.getData = function () {
     var objectData = {};
