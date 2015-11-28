@@ -166,7 +166,7 @@ function MibRepo(search) {
             var module = modules[moduleName];
 
             Object.keys(module.objects).forEach(function(objectName) {
-                var object = objects[objectName];
+                var object = module.objects[objectName];
                 var parentObjectName = object.parentName;
                 var parentObject = null;
 
@@ -204,6 +204,10 @@ function MibRepo(search) {
 
     Object.defineProperty(this, 'getMibObjectData', {
         value: getMibObjectData
+    });
+
+    Object.defineProperty(this, 'parseOid', {
+        value: parseOid
     });
 }
 
