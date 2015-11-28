@@ -124,13 +124,37 @@
 
 module_definition 
 	: module_identifier DEFINITIONS tag_default DEFINITION BEGIN module_body END 
-		{ return {module_identifier: $1, body: $6}; }
-	| module_identifier DEFINITIONS tag_default DEFINITION BEGIN END 
-		{ return {module_identifier: $1, body: {}}; }
+		{
+		    return {
+                module_name: $1 || '',
+                imports: $6.imports || [],
+                definitions: $6.definitions || []
+            };
+        }
+	| module_identifier DEFINITIONS tag_default DEFINITION BEGIN END
+		{
+		    return {
+		        module_identifier: $1,
+		        imports: [],
+		        definitions: []
+            };
+        }
 	| module_identifier DEFINITIONS DEFINITION BEGIN END 
-		{ return {module_identifier: $1, body: {}}; }
+		{
+            return {
+                module_identifier: $1 || '',
+                imports: [],
+                definitions: []
+            };
+        }
 	| module_identifier DEFINITIONS DEFINITION BEGIN module_body END 
-		{ return {module_identifier: $1, body: $5}; }
+		{
+            return {
+                module_identifier: $1 || '',
+                imports: $5.imports || [],
+                definitions: $5.definitions || []
+            };
+        }
 	;
 
 module_identifier 
@@ -150,12 +174,10 @@ tag_default
 	;
 
 module_body
-	: export_list import_list assignment_list
-		{ $$ = {exports: $1, imports: $2, assignments: $3}; }
-	| export_list assignment_list
-		{ $$ = {exports: $1, assignments: $2}; }
-	| import_list assignment_list
-		{ $$ = {imports: $1, assignments: $2}; }
+	: import_list assignment_list
+		{ $$ = { imports: $1, definitions: $2 }; }
+    | assignment_list
+        { $$ = { definitions: $1 }; }
 	;
 
 export_list
@@ -177,7 +199,7 @@ symbols_from_module_list
 
 symbols_from_module
 	: symbol_list FROM module_identifier
-	    { $$ = { 'module_identifier': $3, 'symbols': $1 } }
+	    { $$ = { 'module_name': $3, 'object_names': $1 } }
 	;
 
 symbol_list
@@ -201,17 +223,41 @@ assignment_list
 
 assignment
 	: macro_definition
-		{ $$ = 'not_implemented' }
+		{ $$ = { definition_class: 'macro' }; }
 	| macro_definition SEMI_COLON
-		{ $$ = 'not_implemented' }
+		{ $$ = { definition_class: 'macro' }; }
 	| type_assignment
-		{ $$ = { assignment_class: 'type', identifier: $1.identifier, assignment_type: $1.type } }
+		{
+		    $$ = {
+		        definition_class: 'type',
+		        name: $1.identifier,
+		        type: $1.type
+            };
+        }
 	| type_assignment SEMI_COLON
-		{ $$ = { assignment_class: 'type', identifier: $1.identifier, assignment_type: $1.type } }
+		{
+		    $$ = {
+		        definition_class: 'type',
+                name: $1.identifier,
+                type: $1.type
+            };
+        }
 	| value_assignment
-		{ $$ = { assignment_class: 'value', identifier: $1.identifier, assignment_type: $1.type, assignment_value: $1.value } }
+		{
+		    $$ = {
+		        definition_class: 'value',
+		        name: $1.identifier,
+		        value: $1.value
+            };
+        }
 	| value_assignment SEMI_COLON
-		{ $$ = { assignment_class: 'value', identifier: $1.identifier, assignment_type: $1.type, assignment_value: $1.value } }
+		{
+		    $$ = {
+		        definition_class: 'value',
+		        name: $1.identifier,
+		        value: $1.value
+            };
+        }
 	;
 
 macro_definition
@@ -254,25 +300,90 @@ type_assignment
 
 type
 	: builtin_type
-		{ $$ = { type_class: 'builtin', type_def: $1 }; }
+		{
+		    var type = {
+                type_class: 'builtin',
+                builtin_name: $1.builtin_name
+		    };
+
+		    if (    type.builtin_name === 'INTEGER' ||
+		            type.builtin_name === 'OCTET STRING' ) {
+		        type.constraint_list = $1.constraint_list || null;
+		        type.constraint_type = $1.constraint_type || null;
+		    } else
+		    if (    type.builtin_name === 'SEQUENCE OF' ) {
+
+		    }
+		}
 	| defined_type
-		{ $$ = { type_class: 'defined', type_def: $1 }; }
+	    {
+	        $$ = {
+	            type_class: 'defined',
+	            defined_name: $1.defined_name,
+	            module_name: $1.module_name || null,
+	            constraint_type: $1.constraint_type || null,
+	            constraint_list: $1.constraint_list || null
+	        };
+	    }
 	| defined_macro_type
-		{ $$ = { type_class: 'defined_macro', type_def: $1 }; }
+	    {
+	        var type = {
+                type_class: 'macro',
+                macro_name: $1.macro_class
+	        }
+
+	        Object.keys($1.macro_data).forEach(function (key) {
+	            type[key] = $1.macro_data[key];
+	        });
+
+	        $$ = type;
+	    }
 	;
 
 defined_type
 	: module_reference IDENTIFIER_STRING value_or_constraint_list
+	    {
+	        $$ = {
+	            defined_name: $2,
+	            module_name: $1,
+	            constraint_type: $3.constraint_type,
+	            constraint_list: $3.constraint_list
+            };
+        }
 	| module_reference IDENTIFIER_STRING
+	    {
+	        $$ = {
+	            defined_name: $2,
+	            module_name: $1
+	        };
+	    }
 	| IDENTIFIER_STRING value_or_constraint_list
+	    {
+	        $$ = {
+	            defined_name: $1,
+	            constraint_type: $2.constraint_type,
+	            constraint_list: $2.constraint_list
+	        };
+	    }
 	| IDENTIFIER_STRING
+	    { $$ = { defined_name: $1 }; }
 	;
 
 builtin_type
 	: null_type
+	    { $$ = { builtin_name: $1 }; }
 	| boolean_type
+	    { $$ = { builtin_name: $1 }; }
 	| real_type
-	| integer_type 
+	    { $$ = { builtin_name: $1 }; }
+	| integer_type
+	    {
+	        $$ = {
+	            builtin_name: 'INTEGER',
+	            constraint_type: $1.constraint_type,
+	            constraint_list: $1.constraint_list
+            };
+        }
 	| object_identifier_type
 	| string_type 
 	| bit_string_type 
@@ -302,16 +413,31 @@ real_type
 
 integer_type
 	: INTEGER
+	    { $$ = {}; }
 	| INTEGER value_or_constraint_list
+	    {
+	        $$ = {
+	            constraint_type: $1.constraint_type,
+	            constraint_list: $1.constraint_list
+	        };
+	    }
 	;
 
 object_identifier_type
 	: OBJECT IDENTIFIER
+	    { $$ = 'OBJECT IDENTIFIER'; }
 	;
 
 string_type
 	: OCTET STRING
+	    { $$ = {}; }
 	| OCTET STRING constraint_list_container
+	    {
+            $$ = {
+                constraint_type: $1.constraint_type,
+                constraint_list: $1.constraint_list
+            };
+        }
 	;
 
 bit_string_type
@@ -565,7 +691,7 @@ null_value
 		{ $$ = null; }
 	;
 
-bollean_value
+boolean_value
 	: TRUE
 		{ $$ = true; }
 	| FALSE
