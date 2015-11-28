@@ -3,6 +3,7 @@
  */
 
 var MibModule = require('../src/mib/mibmodule.js').MibModule;
+var MibObject = require('../src/mib/mibobject.js').MibObject;
 var expect = require('expect.js');
 
 describe("MibModule constructor", function () {
@@ -14,7 +15,7 @@ describe("MibModule constructor", function () {
     });
 
     it("has a definitions property", function () {
-        expect(ifMib).to.have.property('definitions');
+        expect(ifMib).to.have.property('objects');
     });
 
     it("has a imports property", function () {
@@ -29,43 +30,23 @@ describe("MibModule constructor", function () {
         expect(ifMib.name).to.be('IF-MIB');
     });
 
-    describe("The definitions property", function () {
-        it("contains a mapping of identifiers to object definitions");
+    describe("The object property", function () {
+        it("contains a mapping of object names to object definitions");
 
         it("should contain a definition for the ifInOctets object", function () {
-            expect(ifMib.definitions).to.have.property("ifInOctets");
+            expect(ifMib.objects).to.have.property("ifInOctets");
         });
 
         describe("The ifInOctets object definition", function () {
-            var definition = null;
+            var object = null;
 
             beforeEach(function () {
-                definition = ifMib.definitions.ifInOctets;
+                object = ifMib.objects.ifInOctets;
             });
 
-            it("should have a syntax property", function () {
-                expect(definition).to.have.property('syntax');
+            it("should be a MibObject", function () {
+                expect(object).to.be.a(MibObject);
             });
-
-            it("should have a description property", function () {
-                expect(definition).to.have.property('description');
-            });
-
-            it("should have a status property", function () {
-                expect(definition).to.have.property('status');
-            });
-
-            it("should have a maxAccess property", function () {
-                expect(definition).to.have.property('maxAccess');
-            });
-
-            it("should have an oid property", function () {
-                expect(definition).to.have.property('oid');
-            });
-
-            it("the oid should be [ ifEntry 2 ]", function () {
-                expect(definition.oid).to.eql(['ifEntry', 2]);
-            })
         })
     });
 

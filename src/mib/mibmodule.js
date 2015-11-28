@@ -7,8 +7,20 @@ var fs = require('fs');
 
 function MibModule(mibPath) {
     var self = this;
-    var definitions = {};
+    var objects = {};
+    var types = {};
     var imports = {};
+
+    function addImport(importSyntax) {
+        var moduleName = importSyntax.module_name;
+        importSyntax.object_names.forEach(function (objectName) {
+            if(imports[objectName]) {
+                throw(new Error(`${objectName} imported twice in module ${mibPath}`));
+            }
+
+            imports[objectName] = moduleName;
+        });
+    }
 
     function addDefinition(definitionSyntax) {
         var identifier;
@@ -31,7 +43,7 @@ function MibModule(mibPath) {
             }
         }
 
-        Object.defineProperty(definitions, identifier, {
+        Object.defineProperty(objects, identifier, {
             enumerable: true,
             value: definition
         })
@@ -60,12 +72,18 @@ function MibModule(mibPath) {
             addDefinition(assigment);
         });
     }
+
+    function readImports(imports) {
+        imports.forEach(function (importSyntax) {
+            addImport(importSyntax);
+        });
+    }
     var source = fs.readFileSync(mibPath).toString();
     var syntaxTree = smiParser.parse(source);
     readSyntaxTree(syntaxTree);
 
-    Object.defineProperty(self, 'definitions', {
-        value: definitions
+    Object.defineProperty(self, 'objects', {
+        value: objects
     });
 
     Object.defineProperty(self, 'imports', {
@@ -76,5 +94,13 @@ function MibModule(mibPath) {
         value: syntaxTree.module_identifier
     });
 }
+
+MibModule.prototype.getExporterForName = function (objectName) {
+    return this.imports[objectName] || null;
+};
+
+MibModule.prototype.importsName = function (objectName) {
+    return !!this.imports[objectName];
+};
 
 exports.MibModule = MibModule;
