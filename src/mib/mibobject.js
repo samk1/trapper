@@ -5,12 +5,15 @@
 var BUILTIN_TYPES = require('./mibconstants.js').BUILTIN_TYPES;
 
 function MibObject(spec) {
-    if(!spec.name || !spec.identifier) {
-        throw(new Error('Name and Identifier must be specified'));
+    if(!spec.descriptor || !spec.identifier) {
+        throw(new Error('Descriptor and Identifier must be specified'));
+    }
+    if(!spec.moduleName) {
+        throw(new Error('Module name must be specified'))
     }
 
-    this.name = spec.name || null;
-    this.parentName = spec.parentName || null;
+    this.descriptor = spec.descriptor || null;
+    this.parentDescriptor = spec.parentDescriptor || null;
     this.identifier = spec.identifier || null;
     this.moduleName = spec.moduleName || null;
     this.typeName = BUILTIN_TYPES.ObjectIdentifier;
@@ -18,7 +21,7 @@ function MibObject(spec) {
     if(spec.macro) {
         var macro = spec.macro;
         if(!macro.macroTypeName) {
-            throw(new Error("Macro type name must be specified"));
+            throw(new Error("Macro type descriptor must be specified"));
         }
 
         this.typeName = macro.macroTypeName;
@@ -30,8 +33,8 @@ MibObject.prototype.getData = function () {
     var objectData = {};
 
     objectData.identifier = this.identifier;
-    objectData.parentName = this.parentName;
-    objectData.name = this.name;
+    objectData.parentDescriptor = this.parentDescriptor;
+    objectData.descriptor = this.descriptor;
     objectData.typeName = this.typeName;
 
     if(this.macroData) {
