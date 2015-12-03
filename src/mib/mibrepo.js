@@ -11,7 +11,7 @@ var fs = require('fs');
 var path = require('path');
 
 function MibRepo(search) {
-    var mibModules = {};
+    var modules = {};
 
     var rootObject = new MibObject({
         id: 1,
@@ -41,11 +41,11 @@ function MibRepo(search) {
             _object: isoObject
         };
 
-        function addObject(object, oid) {
+        function addObject(object) {
             var currentNode = self.root;
             var prevNode = null;
 
-            oid.forEach(function (identifier) {
+            object.oid.forEach(function (identifier) {
                 if(!currentNode[identifier]) {
                     currentNode[identifier] = {}
                 }
@@ -55,7 +55,12 @@ function MibRepo(search) {
             });
 
             prevNode[object.descriptor] = currentNode;
-            currentNode._object = object
+            currentNode._object = object;
+
+            // Now that the object has been added to the tree, it can
+            // be retrieved via public API so it is now sealed.
+            object.finalise();
+            Object.seal(object);
         }
 
         this.root = {
@@ -94,23 +99,48 @@ function MibRepo(search) {
             })
         }
 
-        function expandOid(objectDescriptor, module) {
+        /*
+         * recursively expand OID of object defined in module,
+         * and add the object to the tree. Any descriptors below this
+         * are also expanded and added to the tree.
+         */
+        function expandOid(object, module) {
             var moduleName = module.name;
-            var oid = findOid(objectDescriptor, moduleName);
+            var oid = findOid(object.descriptor, moduleName);
 
+            // This oid for this object has already been expanded,
+            // so unwind from here.
+            if(object.oid) {
+                return object.oid;
+            }
+
+            // If the first sub-id is a number, then we are at root and can unwind.
             if(typeof oid[0] === 'number') {
+                object.oid = oid.slice();
+                tree.addObject(object);
                 return oid;
             }
 
+            // The first sub-id is a descriptor. Find the module it is from
+            // and expand from there.
             var baseDescriptor = oid.unshift();
-            var from;
+            var fromModule;
+            var fromModuleName;
+            var fromObject;
             if(module.importsDescriptor(baseDescriptor)) {
-                from = module.getExporterForDescriptor(baseDescriptor);
+                fromModuleName = module.getExporterForDescriptor(baseDescriptor);
             } else {
-                from = moduleName;
+                fromModuleName = moduleName;
             }
+            fromModule = modules[fromModuleName];
+            fromObject = fromModule.objects[baseDescriptor];
 
-            return oid.concat(expandOid(baseDescriptor, mibModules[from]))
+            // recurse down to expand the next part of the OID.
+            oid.concat(expandOid(fromObject, fromModule));
+            object.oid = oid.slice();
+            tree.addObject(object);
+
+            return oid;
         }
 
         // We examine every object that has been defined in two passes. The first pass can
@@ -119,8 +149,8 @@ function MibRepo(search) {
         // First pass: extract all partial ids in this format [foo, n_1, n_2, ... , n_m]
         // If there are any 'bare' descriptors (eg 'bar' in [foo, bar(2), 1]) these are
         // added to the module as an extra object.
-        Object.keys(mibModules).forEach(function (moduleName) {
-            var module = mibModules[moduleName];
+        Object.keys(modules).forEach(function (moduleName) {
+            var module = modules[moduleName];
 
             Object.keys(module.objects).forEach(function (objectDescriptor) {
                 var object = module[objectDescriptor];
@@ -137,8 +167,13 @@ function MibRepo(search) {
 
                 for(var i = 1; i++; i < object.oidSyntax.length) {
                     var descriptor;
-                    if(descriptor = object.oidSyntax[1].de) {
+                    if(descriptor = object.oidSyntax[i].de) {
                         addDescriptor(descriptor, oid.slice(0, i+1), moduleName);
+                        module[descriptor] = new MibObject({
+                            descriptor: descriptor,
+                            identifier: object.oidSyntax[i].id,
+                            moduleName: moduleName
+                        });
                     }
                 }
             });
@@ -147,18 +182,11 @@ function MibRepo(search) {
         // Second pass: expand all oids that were extracted above into full format
         // starting from root (eg .1.3.6.1.2.1.2.2 and so on), and then insert the object
         // into the tree for quick retrieval.
-        Object.keys(mibModules).forEach(function (moduleName) {
-            var module = mibModules[moduleName]; {
+        Object.keys(modules).forEach(function (moduleName) {
+            var module = modules[moduleName]; {
                 Object.keys(module.objects).forEach(function (objectDescriptor) {
                     var object = module.objects[objectDescriptor];
-
-                    if(object.hasOid) {
-                        return;
-                    }
-
-                    var oid = expandOid(objectDescriptor, module);
-
-                    tree.addObject(object, oid)
+                    expandOid(object, module);
                 });
             }
         });
@@ -173,7 +201,7 @@ function MibRepo(search) {
         var objectDescriptor = oidSyntax.object_name;
         var postIdentifiers = oidSyntax.post_identifier_list;
 
-        var module = mibModules[moduleName];
+        var module = modules[moduleName];
         if (!module) {
             throw(new Error("Unknown module " + moduleName));
         }
@@ -260,7 +288,7 @@ function MibRepo(search) {
     function parseMibs(dirPath) {
         enumFiles(dirPath).forEach(function (filePath) {
             var module = new MibModule(filePath);
-            mibModules[module.name] = module;
+            modules[module.name] = module;
         })
     }
 

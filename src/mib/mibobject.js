@@ -4,6 +4,17 @@
 
 var BUILTIN_TYPES = require('./mibconstants.js').BUILTIN_TYPES;
 
+/* MibObject lifecycle:
+ * 1. created during parsing. descriptor, identifier and moduleName are set.
+ * 2. object information is defined in read-only properties.
+ * 3. After parsing is complete, the oid is set as a read only property during
+ * OID expansion.
+ * 4. The object is added to the object tree where it is accessible by public API.
+ * at this point, the object is finalised (the OID is set read only) and sealed.
+ *
+ * An object can also be created after parsing if it is discovered as a descriptor
+ * assignment.
+ */
 function MibObject(spec) {
     if(!spec.descriptor || !spec.identifier) {
         throw(new Error('Descriptor and Identifier must be specified'));
