@@ -5,7 +5,7 @@
 var syntaxClasses = require('./mibconstants.js').OID_SYNTAX_CLASSES;
 
 var moduleNameMatch = '[A-Z-]+';
-var objectNameMatch = '[a-z][a-zA-Z0-9-]*';
+var objectNameMatch = '[a-z][a-zA-Z0-9-#]*';
 var numberMatch = '[0-9]+';
 var identifierMatch = `(?:(?:${objectNameMatch})|(?:${numberMatch}))`;
 var identifierListMatch = `(?:${identifierMatch}\\.)*${identifierMatch}`;
