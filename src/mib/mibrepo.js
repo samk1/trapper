@@ -13,66 +13,136 @@ var path = require('path');
 function MibRepo(search) {
     var modules = {};
 
-    var rootObject = new MibObject({
-        id: 1,
-        parent: null,
-        name: 'iso'
-    });
-
-    var descriptors = {
-        iso: [{
-            oid: [ 1 ],
-            from: 'SNMPv2-SMI'
-        }]
-    };
-
-    var oids = {
-        '.1': {
-            descriptor: 'iso',
-            from: 'SNMPv2-SMI'
-        }
-    };
-
     function Tree() {
         var self = this;
-        var isoObject = null;
 
-        var isoNode = {
-            _object: isoObject
+        var ccittObject = new MibObject({
+            descriptor: 'ccitt',
+            identifier: 0,
+            moduleName: 'SNMPv2-SMI'
+        });
+
+        var isoObject = new MibObject({
+            descriptor: 'iso',
+            identifier: 1,
+            moduleName: 'SNMPv2-SMI'
+        });
+
+        var jointIsoCcittObject = new MibObject({
+            descriptor: 'joint-iso-ccitt',
+            identifier: 2,
+            moduleName: 'SNMPv2-SMI'
+        });
+
+        var ccittNode = {
+            parent: this.root,
+            children: {},
+            object: ccittObject
         };
 
-        function addObject(object) {
+        var isoNode = {
+            parent: this.root,
+            children: {},
+            object: isoObject
+        };
+
+        var jointIsoCcittNode = {
+            parent: this.root,
+            children: {},
+            object: jointIsoCcittObject
+        };
+
+        this.root = {
+            children: {
+                0: ccittNode,
+                ccitt: ccittNode,
+                1: isoNode,
+                iso: isoNode,
+                2: jointIsoCcittNode,
+                'joint-iso-ccitt': jointIsoCcittNode
+            },
+            parent: null
+        };
+
+        this.addObject = function (object) {
             var currentNode = self.root;
             var prevNode = null;
 
             object.oid.forEach(function (identifier) {
-                if(!currentNode[identifier]) {
-                    currentNode[identifier] = {}
+                if(!currentNode.children[identifier]) {
+                    currentNode.children[identifier] = {
+                        children: {},
+                        parent: currentNode
+                    }
                 }
 
                 prevNode = currentNode;
-                currentNode = currentNode[identifier];
+                currentNode = currentNode.children[identifier];
             });
 
-            prevNode[object.descriptor] = currentNode;
-            currentNode._object = object;
+            if(!prevNode.children[object.descriptor]) {
+                prevNode.children[object.descriptor] = {
+                    children: currentNode.children,
+                    parent: prevNode,
+                    object: object
+                };
+            }
+
+            // real objects overwrite anonymous objects
+            if(currentNode.object) {
+                if(currentNode.object.descriptor.startsWith('anonymous#')) {
+                    currentNode.object = object;
+                } else {
+                    throw (new Error("Attempt to redefine object"));
+                }
+            } else {
+                currentNode.object = object;
+            }
 
             // Now that the object has been added to the tree, it can
             // be retrieved via public API so it is now sealed.
             object.finalise();
             Object.seal(object);
-        }
-
-        this.root = {
-            1: isoNode,
-            iso: isoNode
         };
-        this.addObject = addObject;
+
+        this.getNode = function (oid) {
+            var currentNode = self.root;
+
+            oid.forEach(function (identifier) {
+                currentNode = currentNode.children[identifier];
+                if(!currentNode) {
+                    return null;
+                }
+            });
+
+            return currentNode;
+        };
+
+        this.getLastDefinedNode = function (oid) {
+            var currentNode = self.root;
+
+            oid.forEach(function (identifier) {
+                if(!currentNode.children[identifier]) {
+                    return currentNode;
+                }
+                currentNode = currentNode.children[identifier];
+            });
+
+            return currentNode;
+        }
     }
 
     var tree = new Tree();
 
     function expandOids() {
+
+        var descriptors = {
+            iso: [{
+                oid: [ 1 ],
+                from: 'SNMPv2-SMI'
+            }]
+        };
+
         function addDescriptor(descriptor, oid, from) {
             if(!descriptors[descriptor]) {
                 descriptors[descriptor] = [ {
@@ -149,8 +219,10 @@ function MibRepo(search) {
         // First pass: extract all partial ids in this format [foo, n_1, n_2, ... , n_m]
         // If there are any 'bare' descriptors (eg 'bar' in [foo, bar(2), 1]) these are
         // added to the module as an extra object.
+        // any bare identifiers are added to the module as anonymous objects.
         Object.keys(modules).forEach(function (moduleName) {
             var module = modules[moduleName];
+            var anonymousCount = 1;
 
             Object.keys(module.objects).forEach(function (objectDescriptor) {
                 var object = module[objectDescriptor];
@@ -167,14 +239,18 @@ function MibRepo(search) {
 
                 for(var i = 1; i++; i < object.oidSyntax.length) {
                     var descriptor;
-                    if(descriptor = object.oidSyntax[i].de) {
-                        addDescriptor(descriptor, oid.slice(0, i+1), moduleName);
-                        module[descriptor] = new MibObject({
-                            descriptor: descriptor,
-                            identifier: object.oidSyntax[i].id,
-                            moduleName: moduleName
-                        });
+                    if(object.oidSyntax[i].de) {
+                        descriptor = object.oidSyntax[i].de
+                    } else {
+                        descriptor = `anonymous#${anonymousCount}`;
                     }
+
+                    addDescriptor(descriptor, oid.slice(0, i+1), moduleName);
+                    module[descriptor] = new MibObject({
+                        descriptor: descriptor,
+                        identifier: object.oidSyntax[i].id,
+                        moduleName: moduleName
+                    });
                 }
             });
         });
@@ -192,14 +268,11 @@ function MibRepo(search) {
         });
     }
 
-    function getMibObjectData(mibOid) {
-        return objectTree.getObject(mibOid.identifiersCopy()).getData();
-    }
-
     function parseModuleObjectOidSyntax(oidSyntax) {
         var moduleName = oidSyntax.module_name;
         var objectDescriptor = oidSyntax.object_name;
         var postIdentifiers = oidSyntax.post_identifier_list;
+        var oid;
 
         var module = modules[moduleName];
         if (!module) {
@@ -211,68 +284,55 @@ function MibRepo(search) {
             throw(new Error(objectDescriptor + "is not defined in " + moduleName))
         }
 
-        //Trace to root
-        var oidDescriptors = objectTree.getDescriptorPath(object);
-        var oidIdentifiers = objectTree.getIdentifierPath(object);
+        oid = object.oid;
+
+        var currentNode = tree.getNode(oid);
 
         if (postIdentifiers) {
             var postIdentifier;
 
             while (postIdentifier = postIdentifiers.pop()) {
-                if (object = objectTree.getChildObject(object, postIdentifier)) {
-                    oidIdentifiers.push(object.identifier);
-                    oidDescriptors.push(object.descriptor);
+                if (currentNode = currentNode.children[postIdentifier]) {
+                    oid.push(currentNode.object.identifier);
                 }
                 else {
-                    oidIdentifiers.concat(postIdentifiers);
-                    oidDescriptors.concat(postIdentifiers);
+                    postIdentifiers.forEach(function (id) {
+                        if (typeof id === 'string') {
+                            throw new Error("Undefined descriptor:" + id);
+                        }
+                    });
+                    oid.concat(postIdentifiers);
                     break;
                 }
             }
 
-            moduleName = object.moduleName;
-            objectDescriptor = object.descriptor;
         }
-        return new MibOid({
-            moduleName: moduleName,
-            objectName: objectDescriptor,
-            identifiers: oidIdentifiers,
-            names: oidDescriptors
-        });
+
+        return oid
     }
 
     function parseIdentifierListOidSyntax(oidSyntax) {
-        var mibOid;
-        var oidDescriptors = [];
-        var oidIdentifiers = [];
         var identifiers = oidSyntax.identifier_list;
-        var identifier;
-        var object = rootObject;
+        var oid;
 
-        //It's *almost* the same as getMibObjectData
-        //It's exactly the same as the loop in parseModuleObjectOidSyntax
-        while (identifier = identifiers.pop()) {
-            if (object = objectTree.getChildObject(object, identifier)) {
-                oidIdentifiers.push(object.identifier);
-                oidDescriptors.push(object.descriptor);
+        var lastNode = tree.getLastDefinedNode(identifiers);
+        oid = lastNode.object.oid;
+
+        var remainingIdentifiers = identifiers.slice(oid.length, identifiers.length);
+
+        remainingIdentifiers.forEach(function (id) {
+            if(typeof id === 'string') {
+                throw new Error("Undefined descriptor:" + id);
             }
-            else {
-                oidIdentifiers.concat(identifiers);
-                oidDescriptors.concat(identifiers);
-                break;
-            }
-        }
-
-        var moduleName = object.descriptor;
-        var objectName = object.moduleName;
-
-        mibOid = new MibOid({
-            moduleName: moduleName,
-            objectName: objectName,
-            identifiers: oidIdentifiers,
-            names: oidDescriptors
         });
-        return mibOid;
+
+        oid.concat(remainingIdentifiers);
+
+        return oid;
+    }
+
+    function getObject(oid) {
+        return tree.getNode(oid).object;
     }
 
     function parseOid(oidString) {
@@ -320,12 +380,25 @@ function MibRepo(search) {
     //Expand all OIDs
     expandOids();
 
-    Object.defineProperty(this, 'getMibObjectData', {
-        value: getMibObjectData
-    });
 
     Object.defineProperty(this, 'parseOid', {
         value: parseOid
+    });
+
+    Object.defineProperty(this, 'getObject', {
+        value: getObject
+    });
+
+    Object.defineProperty(this, 'translateNumericOid', {
+        value: translateNumericOid
+    });
+
+    Object.defineProperty(this, 'translateFullOid', {
+        value: translateFullOid
+    });
+
+    Object.defineProperty(this, 'translateSymbolicOid', {
+        value: translateSymbolicOid
     });
 }
 

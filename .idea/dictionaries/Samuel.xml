@@ -1,6 +1,7 @@
 <component name="ProjectDictionaryState">
   <dictionary name="Samuel">
     <words>
+      <w>ccitt</w>
       <w>eventstream</w>
       <w>mibconstants</w>
       <w>mibmodule</w>
@@ -8,6 +9,7 @@
       <w>miboid</w>
       <w>mibs</w>
       <w>oidparser</w>
+      <w>oids</w>
     </words>
   </dictionary>
 </component>
