@@ -16,28 +16,15 @@ var BUILTIN_TYPES = require('./mibconstants.js').BUILTIN_TYPES;
  * assignment.
  */
 function MibObject(spec) {
-    if(!spec.descriptor || !spec.identifier) {
-        throw(new Error('Descriptor and Identifier must be specified'));
+    if(!spec.descriptor) {
+        throw(new Error('Descriptor must be specified'));
     }
     if(!spec.moduleName) {
         throw(new Error('Module name must be specified'))
     }
 
-    this.descriptor = spec.descriptor || null;
-    this.parentDescriptor = spec.parentDescriptor || null;
-    this.identifier = spec.identifier || null;
-    this.moduleName = spec.moduleName || null;
-    this.typeName = BUILTIN_TYPES.ObjectIdentifier;
-
-    if(spec.macro) {
-        var macro = spec.macro;
-        if(!macro.macroTypeName) {
-            throw(new Error("Macro type descriptor must be specified"));
-        }
-
-        this.typeName = macro.macroTypeName;
-        this.macroData = macro.macroData;
-    }
+    this.descriptor = spec.descriptor;
+    this.moduleName = spec.moduleName;
 }
 
 MibObject.prototype.getData = function () {

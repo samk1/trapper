@@ -18,19 +18,16 @@ function MibRepo(search) {
 
         var ccittObject = new MibObject({
             descriptor: 'ccitt',
-            identifier: 0,
             moduleName: 'SNMPv2-SMI'
         });
 
         var isoObject = new MibObject({
             descriptor: 'iso',
-            identifier: 1,
             moduleName: 'SNMPv2-SMI'
         });
 
         var jointIsoCcittObject = new MibObject({
             descriptor: 'joint-iso-ccitt',
-            identifier: 2,
             moduleName: 'SNMPv2-SMI'
         });
 
@@ -248,7 +245,6 @@ function MibRepo(search) {
                     addDescriptor(descriptor, oid.slice(0, i+1), moduleName);
                     module[descriptor] = new MibObject({
                         descriptor: descriptor,
-                        identifier: object.oidSyntax[i].id,
                         moduleName: moduleName
                     });
                 }
@@ -293,7 +289,7 @@ function MibRepo(search) {
 
             while (postIdentifier = postIdentifiers.pop()) {
                 if (currentNode = currentNode.children[postIdentifier]) {
-                    oid.push(currentNode.object.identifier);
+                    oid.push(postIdentifier);
                 }
                 else {
                     postIdentifiers.forEach(function (id) {
