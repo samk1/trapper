@@ -3,10 +3,19 @@
  */
 
 var smiParser = require('./smiparser.js').parser;
+var MibObject = require('./mibobject.js').MibObject;
 var fs = require('fs');
 
 function MibModule(mibPath) {
+    var implementedMacros = new Set([
+        'module_identity',
+        'object_identity',
+        'object_type',
+        'notification_type'
+    ]);
+
     var self = this;
+    var moduleName;
     var objects = {};
     var types = {};
     var imports = {};
@@ -23,61 +32,50 @@ function MibModule(mibPath) {
     }
 
     function addDefinition(definitionSyntax) {
-        var identifier;
-        var definition = {};
 
-        if(definitionSyntax.assignment_class === 'value') {
-            identifier = definitionSyntax.identifier;
-            var definitionType = definitionSyntax.assignment_type;
-            var definitionValue = definitionSyntax.assignment_value;
+        if(definitionSyntax.definition_class === 'value') {
+            var object = new MibObject({
+                descriptor: definitionSyntax.name,
+                moduleName: moduleName
+            });
 
-            if(definitionType.type_class === 'defined_macro') {
-                if(definitionType.type_def.macro_type === 'module_identity') {
-                    definition = readModuleIdentityDefinition(definitionType.type_def.value);
-                    definition.oid = readOidValue(definitionValue);
-                }
-            } else if(definitionType.type_class === 'builtin') {
-                if(definitionType.type_def === 'OBJECT') {
-                    definition.oid = readOidValue(definitionValue)
-                }
+            var definitionType = definitionSyntax.type;
+            var definitionValue = definitionSyntax.value;
+
+            if(definitionValue.class !== 'object_identifier') {
+                throw new Error("non-object identifier value assignments are not implemented");
             }
-        }
 
-        Object.defineProperty(objects, identifier, {
-            enumerable: true,
-            value: definition
-        })
-    }
+            object.oidSyntax = definitionValue.value;
 
-    function readModuleIdentityDefinition(moduleIdDefn) {
-        return moduleIdDefn;
-    }
+            if(definitionType.type_class === 'macro') {
+                if(implementedMacros.has(definitionType.macro_name)) {
+                    object.macroData = definitionType.macro_data;
+                    object.macroName = definitionType.macro_name;
+                } else {
+                    throw new Error("Unimplemented macro type: " + definitionType.macro_name);
+                }
+            } else if (definitionType !== 'OBJECT IDENTIFIER') {
+                throw new Error("Unimplemented type:"  + definitionType);
+            }
 
-    function readOidValue(value) {
-        if(value.class === 'ambiguous_bit_or_object_identifier') {
-            return value.value;
-        } else {
-            throw new Error("Could not read object identifier value");
+            objects[object.descriptor] = object;
         }
     }
 
     function readSyntaxTree(syntaxTree) {
-        var assignments = syntaxTree.body.assignments;
+        moduleName = syntaxTree.module_identifier;
 
-        readAssignments(assignments);
-    }
-
-    function readAssignments(assignments) {
-        assignments.forEach(function (assigment) {
-            addDefinition(assigment);
+        syntaxTree.imports.forEach(function (importSyntax) {
+            addImport(importSyntax)
         });
+
+        syntaxTree.definitions.forEach(function (definitionSyntax) {
+            addDefinition(definitionSyntax)
+        });
+
     }
 
-    function readImports(imports) {
-        imports.forEach(function (importSyntax) {
-            addImport(importSyntax);
-        });
-    }
     var source = fs.readFileSync(mibPath).toString();
     var syntaxTree = smiParser.parse(source);
     readSyntaxTree(syntaxTree);
@@ -91,7 +89,7 @@ function MibModule(mibPath) {
     });
 
     Object.defineProperty(self, 'name', {
-        value: syntaxTree.module_identifier
+        value: moduleName
     });
 }
 
