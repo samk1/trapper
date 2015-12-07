@@ -11,7 +11,11 @@ function MibModule(mibPath) {
         'module_identity',
         'object_identity',
         'object_type',
-        'notification_type'
+        'notification_type',
+        'object_group',
+        'notification_group',
+        'module_compliance',
+        'agent_capabilities'
     ]);
 
     var self = this;
@@ -35,7 +39,7 @@ function MibModule(mibPath) {
 
         if(definitionSyntax.definition_class === 'value') {
             var object = new MibObject({
-                descriptor: definitionSyntax.name,
+                descriptor: definitionSyntax.descriptor,
                 moduleName: moduleName
             });
 
@@ -55,7 +59,7 @@ function MibModule(mibPath) {
                 } else {
                     throw new Error("Unimplemented macro type: " + definitionType.macro_name);
                 }
-            } else if (definitionType !== 'OBJECT IDENTIFIER') {
+            } else if (definitionType.builtin_name !== 'OBJECT IDENTIFIER') {
                 throw new Error("Unimplemented type:"  + definitionType);
             }
 
