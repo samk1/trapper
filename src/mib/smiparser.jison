@@ -115,19 +115,11 @@
 
 /lex
 
-%left
-    OBJECT_IDENTIFIER_TYPE
-    MODULE_IDENTITY_MACRO
-    OBJECT_IDENTITY_MACRO
-    OBJECT_TYPE_MACRO
-    NOTIFICATION_TYPE_MACRO
+%left OBJECT_IDENTIFIER_TYPE
 %left DEFINITION
 
 %left EMPTY_DESCR
 %left DESCRIPTION
-
-%left EMPTY_MODULE_IMPORT
-%left IDENTIFIER_STRING
 
 %left EMPTY_DEFVAL
 %left DEFVAL
@@ -244,7 +236,7 @@ assignment
 		{
 		    $$ = {
 		        definition_class: 'type',
-		        name: $1.identifier,
+		        descriptor: $1.descriptor,
 		        type: $1.type
             };
         }
@@ -252,7 +244,7 @@ assignment
 		{
 		    $$ = {
 		        definition_class: 'type',
-                name: $1.identifier,
+                descriptor: $1.descriptor,
                 type: $1.type
             };
         }
@@ -260,7 +252,7 @@ assignment
 		{
 		    $$ = {
 		        definition_class: 'value',
-		        name: $1.identifier,
+		        descriptor: $1.descriptor,
 		        type: $1.type,
 		        value: $1.value
             };
@@ -269,7 +261,7 @@ assignment
 		{
 		    $$ = {
 		        definition_class: 'value',
-		        name: $1.identifier,
+		        descriptor: $1.descriptor,
 		        type: $1.type,
 		        value: $1.value
             };
@@ -311,7 +303,7 @@ macro_body_element
 
 type_assignment
 	: IDENTIFIER_STRING DEFINITION type
-	    { $$ = { identifier: $1, type: $3 }; }
+	    { $$ = { descriptor: $1, type: $3 }; }
 	;
 
 type
@@ -345,7 +337,7 @@ type
 	    {
 	        $$ = {
                 type_class: 'macro',
-                macro_name: $1.macro_class,
+                macro_name: $1.macro_name,
                 macro_data: $1.macro_data
 	        };
 	    }
@@ -664,106 +656,31 @@ component_presence
 
 value_assignment
 	: IDENTIFIER_STRING type DEFINITION value
-		{ $$ = {identifier: $1, type: $2, value: $4}; }
+		{ $$ = {descriptor: $1, type: $2, value: $4}; }
     | IDENTIFIER_STRING object_identifier_type DEFINITION object_identifier_value
-        { $$ = {identifier: $1, type: $2, value: $4}; }
-    | IDENTIFIER_STRING snmp_module_identity_macro_type DEFINITION object_identifier_value
         {
             $$ = {
-                identifier: $1,
-                value: $4,
+                descriptor: $1,
                 type: {
-                    type_class: 'macro',
-                    macro_name: 'module_identity',
-                    macro_data: $2
-                }
+                    type_class: 'builtin',
+                    builtin_name: 'OBJECT IDENTIFIER'
+                },
+                value: $4
             };
         }
-    | IDENTIFIER_STRING snmp_object_identity_macro_type DEFINITION object_identifier_value
+    | IDENTIFIER_STRING object_identifier_macro_type DEFINITION object_identifier_value
         {
             $$ = {
-                identifier: $1,
-                value: $4,
                 type: {
                     type_class: 'macro',
-                    macro_name: 'object_identity',
-                    macro_data: $2
-                }
+                    macro_name: $2.macro_name,
+                    macro_data: $2.macro_data
+                },
+                descriptor: $1,
+                value: $4
             };
         }
-    | IDENTIFIER_STRING snmp_object_type_macro_type DEFINITION object_identifier_value
-        {
-            $$ = {
-                identifier: $1,
-                value: $4,
-                type: {
-                    type_class: 'macro',
-                    macro_name: 'object_type',
-                    macro_data: $2
-                }
-            };
-        }
-    | IDENTIFIER_STRING snmp_notification_type_macro_type DEFINITION object_identifier_value
-        {
-            $$ = {
-                identifier: $1,
-                value: $4,
-                type: {
-                    type_class: 'macro',
-                    macro_name: 'notification_type',
-                    macro_data: $2
-                }
-            };
-        }
-    | IDENTIFIER_STRING snmp_object_group_macro_type DEFINITION object_identifier_value
-        {
-            $$ = {
-                identifier: $1,
-                value: $4,
-                type: {
-                    type_class: 'macro',
-                    macro_name: 'object_group',
-                    macro_data: $2
-                }
-            };
-        }
-    | IDENTIFIER_STRING snmp_notification_group_macro_type DEFINITION object_identifier_value
-        {
-            $$ = {
-                identifier: $1,
-                value: $4,
-                type: {
-                    type_class: 'macro',
-                    macro_name: 'notification_group',
-                    macro_data: $2
-                }
-            };
-        }
-    | IDENTIFIER_STRING snmp_module_compliance_macro_type DEFINITION object_identifier_value
-        {
-            $$ = {
-                identifier: $1,
-                value: $4,
-                type: {
-                    type_class: 'macro',
-                    macro_name: 'module_compliance',
-                    macro_data: $2
-                }
-            };
-        }
-    | IDENTIFIER_STRING snmp_agent_capabilities_macro_type DEFINITION object_identifier_value
-        {
-            $$ = {
-                identifier: $1,
-                value: $4,
-                type: {
-                    type_class: 'macro',
-                    macro_name: 'agent_capabilities',
-                    macro_data: $2
-                }
-            };
-        }
-	;
+    ;
 
 value
 	: builtin_value
@@ -774,7 +691,7 @@ value
 
 defined_value
 	: module_reference IDENTIFIER_STRING
-	| IDENTIFIER_STRING
+    | IDENTIFIER_STRING
 	;
 
 builtin_value
@@ -891,30 +808,29 @@ name_and_number
 	;
 
 defined_macro_type
-	: snmp_module_identity_macro_type
-	    %prec MODULE_IDENTITY_MACRO
-		{ $$ = {macro_class: 'module_identity', macro_data: $1}; }
-	| snmp_object_identity_macro_type
-	    %prec OBJECT_IDENTITY_MACRO
-		{ $$ = {macro_class: 'object_identity', macro_data: 'not_implemented'}; }
-	| snmp_object_type_macro_type
-	    %prec OBJECT_TYPE_MACRO
-		{ $$ = {macro_class: 'object_type', macro_data: $1}; }
-	| snmp_notification_type_macro_type
-	    %prec NOTIFICATION_TYPE_MACRO
-		{ $$ = {macro_class: 'notification_type', macro_data: 'not_implemented'}; }
-	| snmp_trap_type_macro_type 
-		{ $$ = {macro_class: 'trap_type', macro_data: 'not_implemented'}; }
+	: snmp_trap_type_macro_type
+		{ $$ = { macro_name: 'trap_type', macro_data: $1 }; }
 	| snmp_textual_convention_macro_type 
-		{ $$ = {macro_class: 'textual_convention', macro_data: 'not_implemented'}; }
-	| snmp_object_group_macro_type 
-		{ $$ = {macro_class: 'object_group', macro_data: 'not_implemented'}; }
-	| snmp_notification_group_macro_type 
-		{ $$ = {macro_class: 'notification_group', macro_data: 'not_implemented'}; }
-	| snmp_module_compliance_macro_type 
-		{ $$ = {macro_class: 'module_compliance', macro_data: 'not_implemented'}; }
-	| snmp_agent_capabilities_macro_type 
-		{ $$ = {macro_class: 'agent_capabilities', macro_data: 'not_implemented'}; }
+		{ $$ = { macro_name: 'textual_convention', macro_data: $1 }; }
+	;
+
+object_identifier_macro_type
+	: snmp_module_identity_macro_type
+		{ $$ = { macro_name: 'module_identity', macro_data: $1 }; }
+	| snmp_object_identity_macro_type
+		{ $$ = { macro_name: 'object_identity', macro_data: $1 }; }
+	| snmp_object_type_macro_type
+		{ $$ = { macro_name: 'object_type', macro_data: $1 }; }
+	| snmp_notification_type_macro_type
+		{ $$ = { macro_name: 'notification_type', macro_data: $1 }; }
+	| snmp_object_group_macro_type
+		{ $$ = { macro_name: 'object_group', macro_data: $1 }; }
+	| snmp_notification_group_macro_type
+		{ $$ = { macro_name: 'notification_group', macro_data: $1 }; }
+	| snmp_module_compliance_macro_type
+		{ $$ = { macro_name: 'module_compliance', macro_data: $1 }; }
+	| snmp_agent_capabilities_macro_type
+		{ $$ = { macro_name: 'agent_capabilities', macro_data: $1 }; }
 	;
 
 defined_macro_name
@@ -959,10 +875,7 @@ snmp_revision_part_list
 	: snmp_revision_part
 	    { $$ = [ $1 ]; }
 	| snmp_revision_part_list snmp_revision_part
-	    {
-	        $1.push($2);
-	        $$ = $1;
-	    }
+	    { $1.push($2); $$ = $1; }
 	;
 
 snmp_object_identity_macro_type
@@ -970,6 +883,13 @@ snmp_object_identity_macro_type
 		snmp_status_part
 		snmp_descr_part
 		snmp_refer_part_opt
+        {
+            $$ = {
+                status: $2,
+                description: $3,
+                reference: $4
+            };
+        }
 	;
 
 snmp_object_type_macro_type
@@ -982,18 +902,18 @@ snmp_object_type_macro_type
 		snmp_refer_part_opt
 		snmp_index_part_opt
 		snmp_def_val_part_opt	
-	{
-		$$ = {
-		    syntax: $2,
-		    units: $3,
-		    access: $4,
-		    status: $5,
-		    description: $6,
-		    reference: $7,
-		    index: $8,
-		    default_value: $9
-		};
-	}
+        {
+            $$ = {
+                syntax: $2,
+                units: $3,
+                access: $4,
+                status: $5,
+                description: $6,
+                reference: $7,
+                index: $8,
+                default_value: $9
+            };
+        }
 	;
 
 snmp_notification_type_macro_type
@@ -1002,6 +922,14 @@ snmp_notification_type_macro_type
 		snmp_status_part
 		snmp_descr_part
 		snmp_refer_part_opt
+        {
+            $$ = {
+                objects: $2,
+                status: $3,
+                description: $4,
+                reference: $5
+            };
+        }
 	;
 
 snmp_trap_type_macro_type
@@ -1010,6 +938,14 @@ snmp_trap_type_macro_type
 		snmp_var_part_opt
 		snmp_descr_part_opt
 		snmp_refer_part_opt
+		{
+		    $$ = {
+		        enterprise: $2,
+		        variables: $3,
+		        description: $4,
+		        reference: $5
+            };
+		}
 	;
 
 snmp_textual_convention_macro_type
@@ -1019,6 +955,15 @@ snmp_textual_convention_macro_type
 		snmp_descr_part
 		snmp_refer_part_opt
 		snmp_syntax_part
+        {
+            $$ = {
+                display_hint: $2,
+                status: $3,
+                description: $4,
+                reference: $5,
+                syntax: $6
+            };
+        }
 	;
 
 snmp_object_group_macro_type
@@ -1027,6 +972,14 @@ snmp_object_group_macro_type
 		snmp_status_part
 		snmp_descr_part
 		snmp_refer_part_opt
+        {
+            $$ = {
+                objects: $2,
+                status: $3,
+                description: $4,
+                reference: $5
+            };
+        }
 	;
 
 snmp_notification_group_macro_type
@@ -1035,6 +988,14 @@ snmp_notification_group_macro_type
 		snmp_status_part
 		snmp_descr_part
 		snmp_refer_part_opt
+        {
+            $$ = {
+                notifications: $1,
+                status: $2,
+                description: $3,
+                reference: $4
+            };
+        }
 	;
 
 snmp_module_compliance_macro_type
@@ -1043,6 +1004,14 @@ snmp_module_compliance_macro_type
 		snmp_descr_part
 		snmp_refer_part_opt
 		snmp_module_part_list
+        {
+            $$ = {
+                status: $2,
+                description: $3,
+                reference: $4,
+                modules: $5
+            };
+        }
 	;
 
 snmp_agent_capabilities_macro_type
@@ -1051,13 +1020,16 @@ snmp_agent_capabilities_macro_type
 		snmp_status_part
 		snmp_descr_part
 		snmp_refer_part_opt
-		snmp_module_support_part_list
-	| AGENT_CAPABILITIES
-		snmp_product_release_part
-		snmp_status_part
-		snmp_descr_part
-		snmp_refer_part_opt
-	;
+		snmp_module_support_part_list_opt
+        {
+            $$ = {
+                product_release: $2,
+                status: $3,
+                description: $4,
+                supports: $5
+            };
+        }
+    ;
 
 snmp_update_part
 	: LAST_UPDATED QUOTED_STRING
@@ -1136,48 +1108,45 @@ snmp_units_part_opt
 
 snmp_access_part
 	: ACCESS IDENTIFIER_STRING
-		{ $$ = {access_type: 'access', access_level: $2}; }
-	| MAX_ACCESS IDENTIFIER_STRING
-		{ $$ = {access_type: 'max_access', access_level: $2}; }
-	| MIN_ACCESS IDENTIFIER_STRING
-		{ $$ = {access_type: 'min_access', access_level: $2}; }
-	;
+        { $$ = { access_type: 'access', access_level: $2 }; }
+    | MAX_ACCESS IDENTIFIER_STRING
+        { $$ = { access_type: 'max_access', access_level: $2 }; }
+    | MIN_ACCESS IDENTIFIER_STRING
+        { $$ = { access_type: 'min_access', access_level: $2 }; }
+    ;
 
 snmp_access_part_opt
 	:
 		{ $$ = null; }
 	| ACCESS IDENTIFIER_STRING
-		{ $$ = {access_type: 'access', access_level: $2}; }
+		{ $$ = { access_type: 'access', access_level: $2 }; }
 	| MAX_ACCESS IDENTIFIER_STRING
-		{ $$ = {access_type: 'max_access', access_level: $2}; }
+		{ $$ = { access_type: 'max_access', access_level: $2 }; }
 	| MIN_ACCESS IDENTIFIER_STRING
-		{ $$ = {access_type: 'min_access', access_level: $2}; }
+		{ $$ = { access_type: 'min_access', access_level: $2 }; }
 	;
 
 snmp_index_part
 	: INDEX LEFT_BRACE index_value_list RIGHT_BRACE
-		{ $$ = {part_type: 'index', value: $3}; }
+		{ $$ = { part_type: 'index', value: $3 }; }
 	| AUGMENTS LEFT_BRACE value RIGHT_BRACE
-		{ $$ = {part_type: 'augments', value: $3}; }
+		{ $$ = { part_type: 'augments', value: $3 }; }
 	;
 
 snmp_index_part_opt
 	:
 		{ $$ = null; }
 	| INDEX LEFT_BRACE index_value_list RIGHT_BRACE
-		{ $$ = {part_type: 'index', value: $3}; }
+		{ $$ = { part_type: 'index', value: $3 }; }
 	| AUGMENTS LEFT_BRACE value RIGHT_BRACE
-		{ $$ = {part_type: 'augments', value: $3}; }
+		{ $$ = { part_type: 'augments', value: $3 }; }
 	;
 
 index_value_list
 	: index_value
 		{ $$ = [ $1 ]; }
 	| index_value_list COMMA index_value
-		{
-			$1.push($3);
-			$$ = $1;
-		}
+		{ $1.push($3); $$ = $1; }
 	;
 
 index_value
@@ -1208,147 +1177,231 @@ snmp_def_val_part_opt
 	    %prec EMPTY_DEFVAL
 		{ $$ = null; }
 	| DEFVAL LEFT_BRACE value RIGHT_BRACE
-		{ $$ = $1; }
+		{ $$ = $3; }
 	;
 
 snmp_objects_part
-	: OBJECTS LEFT_BRACE value_list RIGHT_BRACE
+	: OBJECTS LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $3; }
 	;
 
 snmp_objects_part_opt
 	:
-	| OBJECTS LEFT_BRACE value_list RIGHT_BRACE
+	    { $$ = [ ]; }
+	| OBJECTS LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $3; }
 	;
 
-value_list
-	: value
-	| value_list COMMA value
-	;
+/*
+ * non-identifiers are ignored, per snmptranslate behavior.
+ */
+identifier_or_value_list
+    : identifier_or_value
+        { $$ = $1 ? [ $1 ] : [ ]; }
+    | identifier_or_value_list COMMA identifier_or_value
+        { $3 && $1.push($3); $$ = $1; }
+    ;
+
+//TODO: add module reference value
+identifier_or_value
+    : IDENTIFIER_STRING
+        { $$ = $1; }
+    | builtin_value
+        { $$ = null; }
+    ;
 
 snmp_enterprise_part
 	: ENTERPRISE value
+	    { $$ = $2; }
 	;
 
 snmp_var_part
-	: VARIABLES LEFT_BRACE value_list RIGHT_BRACE
+	: VARIABLES LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $3; }
 	;
 
 snmp_var_part_opt
 	:
-	| VARIABLES LEFT_BRACE value_list RIGHT_BRACE
+	    { $$ = [ ]; }
+	| VARIABLES LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $3; }
 	;
 
 snmp_display_part
 	: DISPLAY_HINT QUOTED_STRING
+	    { $$ = $2; }
 	;
 
 snmp_display_part_opt
 	:
+	    { $$ = ""; }
 	| DISPLAY_HINT QUOTED_STRING
+	    { $$ = $2; }
 	;
 
 snmp_notifications_part
-	: NOTIFICATIONS LEFT_BRACE value_list RIGHT_BRACE
+	: NOTIFICATIONS LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $2; }
 	;
 
 snmp_module_part_list
 	: snmp_module_part
+	    { $$ = [ $1 ]; }
 	| snmp_module_part_list snmp_module_part
+	    { $1.push($2); $$ = $1; }
 	;
 
 snmp_module_part
 	: MODULE snmp_module_import_opt	
 		snmp_mandatory_part_opt
-		snmp_compliance_part_list
-	| MODULE snmp_module_import_opt	
-		snmp_mandatory_part_opt
-	;
+		snmp_compliance_part_list_opt
+		{
+		    $$ = {
+		        module_identifier: $2,
+		        mandatory_groups: $3,
+		        compliances: $4
+		    };
+		}
+    ;
 
 snmp_module_import
 	: module_identifier
+	    { $$ = $1; }
 	;
 
 snmp_module_import_opt
 	:
 	    %prec EMPTY_MODULE_IMPORT
+        { $$ = null; }
 	| module_identifier
-	;
-
-snmp_mandatory_part
-	: MANDATORY_GROUPS LEFT_BRACE value_list RIGHT_BRACE
+	    { $$ = $1; }
 	;
 
 snmp_mandatory_part_opt
 	:
-	| MANDATORY_GROUPS LEFT_BRACE value_list RIGHT_BRACE
+	    { $$ = [ ]; }
+	| MANDATORY_GROUPS LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $3; }
+	;
+
+snmp_compliance_part_list_opt
+    :
+        { $$ = [ ]; }
+	| snmp_compliance_part_list
+	    { $$ = $1; }
 	;
 
 snmp_compliance_part_list
 	: snmp_compliance_part
+	    { $$ = [ $1 ]; }
 	| snmp_compliance_part_list snmp_compliance_part
-	;
+	    { $1.push($2); $$ = $1; }
+    ;
 
 snmp_compliance_part
 	: compliance_group
+	    { $$ = { compliance_class: 'group', compliance: $1 }; }
 	| compliance_object
+	    { $$ = { compliance_class: 'object', compliance: $1 }; }
 	;
 
 compliance_group
-	: GROUP value
+	: GROUP identifier_or_value
 		snmp_descr_part
+		{ $$ = { descriptor: $2, description: $3 }; }
 	;
 
 compliance_object
-	: OBJECT value
+	: OBJECT identifier_or_value
 		snmp_syntax_part_opt
 		snmp_write_syntax_part_opt
 		snmp_access_part_opt
 		snmp_descr_part
+        {
+            $$ = {
+                descriptor: $2,
+                syntax: $3,
+                write_syntax: $4,
+                access: $5,
+                description: $6
+            };
+        }
 	;
 
 snmp_write_syntax_part_opt
 	:
-	| WRITE_SYTNAX type
+	    { $$ = null; }
+	| WRITE_SYNTAX type
+	    { $$ = $2; }
 	;
 
 snmp_product_release_part_opt
 	:
+	    { $$ = ""; }
 	| PRODUCT_RELEASE QUOTED_STRING
+	    { $$ = $2; }
 	;
+
+snmp_module_support_part_list_opt
+    :
+        { $$ = [ ]; }
+    | snmp_module_support_part_list
+        { $$ = $1; }
+    ;
 
 snmp_module_support_part_list
 	: snmp_module_support_part
+	    { $$ = [ $1 ]; }
 	| snmp_module_support_part_list snmp_module_support_part
+	    { $1.push($2); $$ = $1; }
 	;
 
 snmp_module_support_part
 	: SUPPORTS snmp_module_import
-		INCLUDES LEFT_BRACE value_list RIGHT_BRACE
-		snmp_variation_part_list
-	| SUPPORTS snmp_module_import
-		INCLUDES LEFT_BRACE value_list RIGHT_BRACE
+		INCLUDES LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+		snmp_variation_part_list_opt
+        {
+            $$ = {
+                module_name: $2,
+                includes: $3,
+                variations: $4
+            };
+        }
 	;
 
-snmp_variation_part_list
-	: snmp_variation_part
+snmp_variation_part_list_opt
+    :
+        { $$ = [ ]; }
+	| snmp_variation_part
+	    { $$ = [ $1 ]; }
 	| snmp_variation_part_list snmp_variation_part
+	    { $1.push($2); $$ = $1; }
 	;
 
 snmp_variation_part
-	: VARIATION value
+	: VARIATION IDENTIFIER_STRING
 		snmp_syntax_part_opt
 		snmp_write_syntax_part_opt
 		snmp_access_part_opt
 		snmp_creation_part_opt
 		snmp_def_val_part_opt
 		snmp_descr_part
-	;
-
-snmp_creation_part
-	: CREATION_REQUIRES LEFT_BRACE value_list RIGHT_BRACE
+		{
+		    $$ = {
+		        descriptor: $2,
+		        syntax: $3,
+		        write_syntax: $4,
+		        access: $5,
+		        creation: $6,
+		        default_value: $7,
+		        description: $8
+		    };
+		}
 	;
 
 snmp_creation_part_opt
 	:
-	| CREATION_REQUIRES LEFT_BRACE value_list RIGHT_BRACE
+	    { $$ = [ ]; }
+	| CREATION_REQUIRES LEFT_BRACE identifier_or_value_list RIGHT_BRACE
+	    { $$ = $3; }
 	;
