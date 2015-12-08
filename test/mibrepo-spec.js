@@ -65,8 +65,13 @@ describe("MibRepo prototype", function () {
         });
     });
 
-    //Returns object definition data given MibOid object
-    describe("getMibObjectData function", function () {
+    //Returns object definition data given oid
+    describe("getObject function", function () {
+        it("should return IF-MIB::ifEntry when input is [ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]", function () {
+            var object = testMibRepo.getObject([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
 
+            expect(object.descriptor).to.be('ifEntry');
+            expect(object.moduleName).to.be('IF-MIB');
+        })
     });
 });
