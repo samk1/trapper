@@ -25,7 +25,40 @@ function MibObject(spec) {
 
     this.descriptor = spec.descriptor;
     this.moduleName = spec.moduleName;
+    this.from = [ spec.moduleName ];
+    this.macroData = null;
 }
+
+MibObject.prototype.equals = function (other) {
+    if(this.descriptor !== other.descriptor) {
+        return false;
+    }
+
+    if(this.macroData || other.macroData) {
+        if(!this.macroData || !other.macroData) {
+            return false;
+        }
+
+        var key;
+        var keys = Object.keys(this.macroData);
+
+        for (key in keys) {
+            if(!other.macroData[key]) {
+                return false;
+            }
+
+            if(this.macroData[key] !== other.macroData[key]) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+
+MibObject.prototype.finalise = function () {
+
+};
 
 MibObject.prototype.getData = function () {
     var objectData = {};
