@@ -19,7 +19,7 @@ function MibModule(mibPath) {
     ]);
 
     var self = this;
-    var moduleName;
+    var moduleName = '';
     var objects = {};
     var types = {};
     var imports = {};
@@ -81,7 +81,11 @@ function MibModule(mibPath) {
     }
 
     var source = fs.readFileSync(mibPath).toString();
-    var syntaxTree = smiParser.parse(source);
+    try {
+        var syntaxTree = smiParser.parse(source);
+    } catch(err) {
+        throw new Error(`${mibPath}: ${err.message}`);
+    }
     readSyntaxTree(syntaxTree);
 
     Object.defineProperty(self, 'objects', {

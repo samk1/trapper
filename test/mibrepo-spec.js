@@ -4,6 +4,7 @@
 
 var MibRepo = require('../src/mib/mibrepo.js').MibRepo;
 var MibModule = require('../src/mib/mibmodule.js').MibModule;
+var MibObject = require('../src/mib/mibobject.js').MibObject;
 var expect = require('expect.js');
 
 //Test mib repository mib path
@@ -44,28 +45,23 @@ describe("MibRepo prototype", function () {
     // * MODULE-NAME::object.1.0
     describe("parseOid function", function () {
         it("should parse iso", function () {
-            var mibOid = testMibRepo.parseOid('iso');
-            expect(mibOid.identifiers).to.eql([ 1 ]);
+            var oid = testMibRepo.parseOid('iso');
+            expect(oid).to.eql([ 1 ]);
         });
 
         it("should parse IF-MIB::ifEntry", function () {
-            var mibOid = testMibRepo.parseOid('IF-MIB::ifEntry');
-            expect(mibOid.identifiers).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
+            var oid = testMibRepo.parseOid('IF-MIB::ifEntry');
+            expect(oid).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
         });
 
         it("should parse .iso.org.dod.internet.mgmt.mib-2.interfaces.ifTable.ifEntry", function () {
-            var mibOid = testMibRepo.parseOid('.iso.org.dod.internet.mgmt.mib-2.interfaces.ifTable.ifEntry');
-            expect(mibOid.identifiers).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
+            var oid = testMibRepo.parseOid('.iso.org.dod.internet.mgmt.mib-2.interfaces.ifTable.ifEntry');
+            expect(oid).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1 ]);
         });
 
         it("should parse IF-MIB::ifEntry.1", function () {
-            var mibOid = testMibRepo.parseOid('IF-MIB::ifEntry.1');
-            expect(mibOid.identifiers).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1, 1 ]);
-        });
-
-        it("should resolve the oid to a string correctly", function () {
-            var mibOid = testMibRepo.parseOid('IF-MIB::ifEntry.1.2.3');
-            expect(mibOid.string).to.be('IF-MIB::ifIndex.2.3');
+            var oid = testMibRepo.parseOid('IF-MIB::ifEntry.1');
+            expect(oid).to.eql([ 1, 3, 6, 1, 2, 1, 2, 2, 1, 1 ]);
         });
     });
 
