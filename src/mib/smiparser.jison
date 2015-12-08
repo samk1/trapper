@@ -29,7 +29,7 @@
 "EXPORTS"			                {return 'EXPORTS';}
 "IMPORTS"			                {return 'IMPORTS';}
 "FROM"				                {return 'FROM';}
-"MACRO"				                {return 'MACRO  ';}
+"MACRO"				                {return 'MACRO';}
 
 "INTEGER"			                {return 'INTEGER';}
 "REAL"				                {return 'REAL';}
@@ -108,7 +108,7 @@
 "CREATION-REQUIRES"		            {return 'CREATION_REQUIRES';}
 
 '[0-1]*'(B|b)			            {return 'BINARY_STRING';}
-'[0-9A-Fa-f]*'(H|h)		            {return 'HEXADECIMAL_STRING';}
+"'"[0-9A-Fa-f]*"'"(H|h)		        {return 'HEXADECIMAL_STRING';}
 "\""[^"]*"\""			            {return 'QUOTED_STRING';}
 [a-zA-Z][a-zA-Z0-9-_]*	            {return 'IDENTIFIER_STRING';}
 [0-9]+				                {return 'NUMBER_STRING';}
@@ -180,10 +180,14 @@ tag_default
 	;
 
 module_body
-	: import_list assignment_list
-		{ $$ = { imports: $1, definitions: $2 }; }
+	: export_list import_list assignment_list
+		{ $$ = { imports: $2, definitions: $3 }; }
+    | import_list assignment_list
+        { $$ = { imports: $1, definitions: $2 }; }
+    | export_list assignment_list
+        { $$ = { imports: [ ], definitions: $2 }; }
     | assignment_list
-        { $$ = { definitions: $1 }; }
+        { $$ = { imports: [ ], definitions: $1 }; }
 	;
 
 export_list
@@ -283,6 +287,11 @@ macro_body
 	| module_reference macro_reference
 	;
 
+macro_body_element_list
+    : macro_body_element
+    | macro_body_element_list macro_body_element
+    ;
+
 macro_body_element
 	: LEFT_PAREN
     | RIGHT_PAREN
@@ -297,6 +306,8 @@ macro_body_element
 	| "STRING"
 	| "OBJECT"
 	| "IDENTIFIER"
+	| "TYPE"
+	| "NOTATION"
 	| IDENTIFIER_STRING
 	| QUOTED_STRING 
 	;
@@ -793,7 +804,7 @@ comma_opt
 
 name_or_number
 	: NUMBER_STRING
-	    { $$ = { id: $1 }; }
+	    { $$ = { id: parseInt($1) }; }
 	| IDENTIFIER_STRING
 	    { $$ = { de: $1 }; }
 	| name_and_number
@@ -802,7 +813,7 @@ name_or_number
 
 name_and_number
 	: IDENTIFIER_STRING LEFT_PAREN NUMBER_STRING RIGHT_PAREN
-	    { $$ = { de: $1, id: $3 }; }
+	    { $$ = { de: $1, id: parseInt($3) }; }
 	| IDENTIFIER_STRING LEFT_PAREN defined_value RIGHT_PAREN
 	    { $$ = { de: $1, id: 'not_implemented' }; }
 	;

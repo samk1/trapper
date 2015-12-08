@@ -2,62 +2,51 @@
  * Created by Samuel on 21/11/2015.
  */
 
-var MibObject = require('./mibobject.js');
-var MibOid = require('./miboid');
-var MibModule = require('./mibmodule.js');
-var oidparser = require('./oidparser.js');
+var MibObject = require('./mibobject.js').MibObject;
+var MibModule = require('./mibmodule.js').MibModule;
+var oidparser = require('./oidparser.js').parser;
 var OID_SYNTAX_CLASSES = require('./mibconstants.js').OID_SYNTAX_CLASSES;
 var fs = require('fs');
 var path = require('path');
 
 function MibRepo(search) {
+    var mibFileExtns = new Set([
+        '.txt',
+        '.mib',
+        '.my'
+    ]);
+
     var modules = {};
+
+    var ccittObject = new MibObject({
+        descriptor: 'ccitt',
+        moduleName: 'SNMPv2-SMI'
+    });
+    ccittObject.oidSyntax = [ { de: '_root' }, { id: 0 } ];
+
+    var smiV1IsoObject = new MibObject({
+        descriptor: 'iso',
+        moduleName: 'RFC1155-SMI'
+    });
+    smiV1IsoObject.oidSyntax = [ { de: '_root'}, { id: 1 }];
+
+    var smiV2IsoObject = new MibObject({
+        descriptor: 'iso',
+        moduleName: 'SNMPv2-SMI'
+    });
+    smiV2IsoObject.oidSyntax = [ { de: '_root' }, { id: 1 } ];
+
+    var jointIsoCcittObject = new MibObject({
+        descriptor: 'joint-iso-ccitt',
+        moduleName: 'SNMPv2-SMI'
+    });
+    jointIsoCcittObject.oidSyntax = [ { de: '_root' }, { id: 2 } ];
 
     function Tree() {
         var self = this;
 
-        var ccittObject = new MibObject({
-            descriptor: 'ccitt',
-            moduleName: 'SNMPv2-SMI'
-        });
-
-        var isoObject = new MibObject({
-            descriptor: 'iso',
-            moduleName: 'SNMPv2-SMI'
-        });
-
-        var jointIsoCcittObject = new MibObject({
-            descriptor: 'joint-iso-ccitt',
-            moduleName: 'SNMPv2-SMI'
-        });
-
-        var ccittNode = {
-            parent: this.root,
-            children: {},
-            object: ccittObject
-        };
-
-        var isoNode = {
-            parent: this.root,
-            children: {},
-            object: isoObject
-        };
-
-        var jointIsoCcittNode = {
-            parent: this.root,
-            children: {},
-            object: jointIsoCcittObject
-        };
-
         this.root = {
-            children: {
-                0: ccittNode,
-                ccitt: ccittNode,
-                1: isoNode,
-                iso: isoNode,
-                2: jointIsoCcittNode,
-                'joint-iso-ccitt': jointIsoCcittNode
-            },
+            children: { },
             parent: null
         };
 
@@ -90,7 +79,11 @@ function MibRepo(search) {
                 if(currentNode.object.descriptor.startsWith('anonymous#')) {
                     currentNode.object = object;
                 } else {
-                    throw (new Error("Attempt to redefine object"));
+                    if(currentNode.object.equals(object)) {
+                        currentNode.object.from.push(object.moduleName);
+                    } else {
+                        throw (new Error("Attempt to redefine object"));
+                    }
                 }
             } else {
                 currentNode.object = object;
@@ -155,15 +148,19 @@ function MibRepo(search) {
         }
 
         function findOid(descriptor, from) {
+            var oid = null;
+
             if(!descriptors[descriptor]) {
                 return null;
             }
 
             descriptors[descriptor].forEach(function (defn) {
                 if(defn.from === from) {
-                    return defn.oid;
+                    oid = defn.oid;
                 }
-            })
+            });
+
+            return oid;
         }
 
         /*
@@ -175,6 +172,10 @@ function MibRepo(search) {
             var moduleName = module.name;
             var oid = findOid(object.descriptor, moduleName);
 
+            if(!oid) {
+                throw new Error(`No such descriptor: ${object.descriptor} from ${moduleName}`)
+            }
+
             // This oid for this object has already been expanded,
             // so unwind from here.
             if(object.oid) {
@@ -182,7 +183,17 @@ function MibRepo(search) {
             }
 
             // If the first sub-id is a number, then we are at root and can unwind.
-            if(typeof oid[0] === 'number') {
+            // This is the case for mibs that implement a new root.
+            if(typeof oid[oid.length - 1] === 'number') {
+                object.oid = oid.slice();
+                tree.addObject(object);
+                return oid;
+            }
+
+            // If the first sub-id is _root then unwind.
+            // This is the case for the well-known objects (iso etc)
+            if(oid[oid.length - 1] === '_root') {
+                oid.pop();
                 object.oid = oid.slice();
                 tree.addObject(object);
                 return oid;
@@ -190,7 +201,7 @@ function MibRepo(search) {
 
             // The first sub-id is a descriptor. Find the module it is from
             // and expand from there.
-            var baseDescriptor = oid.unshift();
+            var baseDescriptor = oid.pop();
             var fromModule;
             var fromModuleName;
             var fromObject;
@@ -203,7 +214,7 @@ function MibRepo(search) {
             fromObject = fromModule.objects[baseDescriptor];
 
             // recurse down to expand the next part of the OID.
-            oid.concat(expandOid(fromObject, fromModule));
+            oid = expandOid(fromObject, fromModule).concat(oid);
             object.oid = oid.slice();
             tree.addObject(object);
 
@@ -222,7 +233,7 @@ function MibRepo(search) {
             var anonymousCount = 1;
 
             Object.keys(module.objects).forEach(function (objectDescriptor) {
-                var object = module[objectDescriptor];
+                var object = module.objects[objectDescriptor];
                 var oidSyntax = object.oidSyntax.slice();
                 var oid = [];
                 do {
@@ -230,11 +241,11 @@ function MibRepo(search) {
                     oid.push(oidElm.id || 0);
                 } while (oidSyntax.length > 1);
 
-                oid.push(oidSyntax.pop().de);
+                oidElm = oidSyntax.pop();
+                oid.push(oidElm.de || oidElm.id);
 
                 addDescriptor(objectDescriptor, oid, moduleName);
-
-                for(var i = 1; i++; i < object.oidSyntax.length) {
+                for(var i = 1; i < object.oidSyntax.length; i++) {
                     var descriptor;
                     if(object.oidSyntax[i].de) {
                         descriptor = object.oidSyntax[i].de
@@ -334,11 +345,23 @@ function MibRepo(search) {
     function parseOid(oidString) {
         var oidSyntax = oidparser.parse(oidString);
 
-        if(oidSyntax.class === OID_SYNTAX_CLASSES.ModuleObject) {
+        if(oidSyntax.syntax_class === OID_SYNTAX_CLASSES.ModuleObject) {
             return parseModuleObjectOidSyntax(oidSyntax);
         } else if (oidSyntax.syntax_class === OID_SYNTAX_CLASSES.IdentifierList) {
             return parseIdentifierListOidSyntax(oidSyntax);
         }
+    }
+
+    function translateNumericOid(oid) {
+
+    }
+
+    function translateFullOid(oid) {
+
+    }
+
+    function translateSymbolicOid(oid) {
+
     }
 
     function parseMibs(dirPath) {
@@ -354,10 +377,17 @@ function MibRepo(search) {
 
         if(fs.statSync(dirPath).isDirectory()) {
             fs.readdirSync(dirPath).forEach(function (fileName) {
-                var filePath = path.join(dirPath, fileName);
-                if(fs.statSync(filePath).isFile()) {
-                    filePaths.push(filePath);
+                var extn;
+                if(extn = /(\.[^.]+)$/.exec(fileName)[1]) {
+                    if(mibFileExtns.has(extn)) {
+                        var filePath = path.join(dirPath, fileName);
+
+                        if(fs.statSync(filePath).isFile()) {
+                            filePaths.push(filePath);
+                        }
+                    }
                 }
+
             });
         }
 
@@ -372,6 +402,12 @@ function MibRepo(search) {
     } else if(typeof search === 'string') {
         parseMibs(search)
     }
+
+    // Well known objects
+    modules['SNMPv2-SMI'].objects[ccittObject.descriptor] = ccittObject;
+    modules['SNMPv2-SMI'].objects[smiV2IsoObject.descriptor] = smiV2IsoObject;
+    modules['SNMPv2-SMI'].objects[jointIsoCcittObject.descriptor] = jointIsoCcittObject;
+    modules['RFC1155-SMI'].objects[smiV1IsoObject.descriptor] = smiV1IsoObject;
 
     //Expand all OIDs
     expandOids();
