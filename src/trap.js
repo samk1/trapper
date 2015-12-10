@@ -7,6 +7,11 @@ var dgram = require('dgram');
 var Ber = require('asn1').Ber;
 var ip = require('ip');
 var EventEmitter = require('events');
+var MibRepo = require('../src/mib/mibrepo.js').MibRepo;
+
+var path = "C:\\usr\\share\\snmp\\mibs";
+
+var mibRepo = new MibRepo(path);
 
 var RFC1155_SMI = {
     IpAddress: 64,
@@ -28,6 +33,8 @@ Ber.Reader.prototype.readTimeTicks = function() {
 function Trap(msg, rinfo) {
     var self = this;
     var reader = new Ber.Reader(msg);
+
+    // Enter Message
     reader.readSequence();
     var version = reader.readInt();
 
@@ -37,12 +44,30 @@ function Trap(msg, rinfo) {
         self.sender = rinfo.address;
         self.data = {};
 
+        // Enter Trap-PDU
         reader.readSequence();
         self.data.enterpriseOid = reader.readOID();
         self.data.agentAddr = reader.readIpAddress();
         self.data.genericTrap = reader.readInt();
         self.data.specificTrap = reader.readInt();
         self.data.timeTicks = reader.readTimeTicks();
+        self.data.varBindList = {};
+
+        // Enter VarBindList
+        reader.readSequence();
+        while(reader.readSequence()) {
+            // Enter VarBind
+            var objectName = reader.readOID();
+            var objectSyntax = null;
+            if(reader.peek() == Ber.Integer) {
+                objectSyntax = reader.readInt();
+                var object = mibRepo.getObject(mibRepo.parseOid(objectName));
+                self.data.varBindList[objectName] = {
+                    type: mibRepo.getObject(mibRepo.parseOid(objectName)),
+                    value: objectSyntax
+                }
+            }
+        }
     }
     //TODO: parse trap
 
